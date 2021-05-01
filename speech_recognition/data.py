@@ -1,3 +1,4 @@
+import os
 from typing import Optional, Tuple
 
 import tensorflow as tf
@@ -24,7 +25,10 @@ def get_dataset(
     dataset = tf.data.experimental.CsvDataset(
         dataset_file_path, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
     )
+    data_dir_path = os.path.dirname(dataset_file_path)
+    data_dir_path += os.sep if not data_dir_path.startswith("gs://") else "/"
 
+    @tf.function
     def _load_example(audio_file_path: tf.Tensor, sentence: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """
         Load audio file and tokenize sentence.
@@ -34,7 +38,7 @@ def get_dataset(
         :return: audio and sentence tensor
         """
         # audio: [TimeStep, NumChannel]
-        audio, sample_rate = tf.audio.decode_wav(tf.io.read_file(audio_file_path), desired_channels)
+        audio, sample_rate = tf.audio.decode_wav(tf.io.read_file(data_dir_path + audio_file_path), desired_channels)
         # tokens: [NumTokens]
         tokens = tokenizer.tokenize(sentence)
 
