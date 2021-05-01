@@ -4,9 +4,9 @@ import sys
 
 import tensorflow as tf
 
-from sample_package.data import get_dataset
-from sample_package.model import SampleModel
-from sample_package.utils import get_device_strategy, get_logger, learning_rate_scheduler, path_join
+from speech_recognition.data import get_dataset
+from speech_recognition.model import SampleModel
+from speech_recognition.utils import get_device_strategy, get_logger, learning_rate_scheduler, path_join
 
 # fmt: off
 parser = argparse.ArgumentParser()

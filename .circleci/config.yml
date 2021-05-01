@@ -31,7 +31,7 @@ jobs:
           name: Run Tests
           command: |
             source env/bin/activate
-            pytest --cov-branch --cov sample_package
+            pytest --cov-branch --cov speech_recognition
 
       - run:
           name: Upload coverage report
@@ -63,8 +63,8 @@ jobs:
           name: Run black, isort
           command: |
             source env/bin/activate
-            black --check sample_package scripts tests
-            isort sample_package scripts tests
+            black --check speech_recognition scripts tests
+            isort speech_recognition scripts tests
 
 workflows:
   main:

@@ -1,9 +1,3 @@
-# Tensorflow2 Project Setup
+# Speech Recognition
 
-- This repository is template for my tensorflow keras project
-
-## Things to be changed
-
-- "README.md" file contents
-- "setup.py" file contents
-- "sample_package" directory name
+- Develope speech recognition models with tensorflow 2

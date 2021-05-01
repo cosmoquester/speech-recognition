@@ -1,12 +1,12 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="tf2-keras-template",
+    name="speech-recognition",
     version="0.0.1",
-    description="This is template repository for tensorflow keras model development.",
+    description="Develope speech recognition models with tensorflow 2",
     python_requires=">=3.6",
     install_requires=["tensorflow>=2"],
-    url="https://github.com/psj8252/tf2-keras-template.git",
+    url="https://github.com/psj8252/speech-recognition.git",
     author="Park Sangjun",
     packages=find_packages(exclude=["tests"]),
 )

@@ -1,7 +1,7 @@
 import pytest
 import tensorflow as tf
 
-from sample_package.model import SampleModel
+from speech_recognition.model import SampleModel
 
 
 def test_model():
