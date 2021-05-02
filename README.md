@@ -1,5 +1,7 @@
 # Speech Recognition
 
+[![codecov](https://codecov.io/gh/cosmoquester/speech-recognition/branch/master/graph/badge.svg?token=veHoLRzJum)](https://codecov.io/gh/cosmoquester/speech-recognition)
+
 - Develope speech recognition models with tensorflow 2
 
 # References
