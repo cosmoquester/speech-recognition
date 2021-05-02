@@ -29,13 +29,13 @@ class AdditiveAttention(tf.keras.layers.Layer):
         self.key_weight = Dense(hidden_dim, name="convert_key")
 
     def call(self, query: tf.Tensor, key: tf.Tensor, value: tf.Tensor, training=None):
-        # [BatchSize, HiddenDim]
-        query = self.query_weight(query)
+        # [BatchSize, 1, HiddenDim]
+        query = self.query_weight(query)[:, tf.newaxis, :]
         # [BatchSize, HiddenDim, SequenceLength]
-        key = tf.transpose(self.key_weight(query), [0, 2, 1])
+        key = tf.transpose(self.key_weight(key), [0, 2, 1])
 
         # [BatchSize, 1, SequenceLength]
-        attention_probs = tf.nn.softmax(tf.matmul(query, key), axis=-1)[:, tf.newaxis, :]
+        attention_probs = tf.nn.softmax(tf.matmul(query, key), axis=-1)
         # [BatchSize, 1, HiddenDim]
         context = tf.matmul(attention_probs, value)
         return context
