@@ -5,3 +5,22 @@ include = '\.pyi?$'
 [tool.isort]
 multi_line_output = 3
 line_length = 120
+
+[tool.pyright]
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnusedImport = true
+reportUnusedVariable = true
+reportUnusedClass = true
+reportUnusedFunction = true
+reportImportCycles = true
+reportTypeshedErrors = true
+reportOptionalMemberAccess = true
+reportUntypedBaseClass = true
+reportPrivateUsage = true
+reportConstantRedefinition = true
+reportInvalidStringEscapeSequence = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportAssertAlwaysTrue = true
+reportSelfClsParameterName = true
