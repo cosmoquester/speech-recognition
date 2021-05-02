@@ -25,8 +25,11 @@ def get_dataset(
     dataset = tf.data.experimental.CsvDataset(
         dataset_file_path, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
     )
-    data_dir_path = os.path.dirname(dataset_file_path)
-    data_dir_path += os.sep if not data_dir_path.startswith("gs://") else "/"
+    if dataset_file_path.startswith("gs://"):
+        data_dir_path = os.path.dirname(dataset_file_path) + "/"
+    else:
+        dataset_file_path = os.path.abspath(dataset_file_path)
+        data_dir_path = os.path.dirname(dataset_file_path) + os.sep
 
     @tf.function
     def _load_example(audio_file_path: tf.Tensor, sentence: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
@@ -51,22 +54,62 @@ def get_dataset(
 
 
 @tf.function
-def make_spectogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_length=None) -> tf.Tensor:
+def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_length=None) -> tf.Tensor:
     """
-    Make spectogram from PCM audio dataset.
+    Make spectrogram from PCM audio dataset.
 
     :param audio: pcm format audio tensor shaped [TimeStep, NumChannel]
     :param frame_length: window length in samples
     :param frame_step: number of samples to step
     :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
-    :return: spectogram audio tensor shaped [NumFrame, NumChannel, NumFFTUniqueBins]
+    :return: spectrogram audio tensor shaped [NumFrame, NumChannel, NumFFTUniqueBins]
     """
     # Shape: [NumChannel, TimeStep]
     audio = tf.transpose(audio)
     # Shape: [NumChannel, NumFrame, NumFFTUniqueBins]
-    spectogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
-    spectogram = tf.abs(spectogram)
+    spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
+    spectrogram = tf.abs(spectrogram)
 
     # Shape: [NumFrame, NumChannel, NumFFTUniqueBins]
-    spectogram = tf.transpose(spectogram, [1, 0, 2])
-    return spectogram
+    spectrogram = tf.transpose(spectrogram, [1, 0, 2])
+    return spectrogram
+
+
+@tf.function
+def make_log_mel_spectrogram(
+    audio: tf.Tensor,
+    sample_rate: int,
+    frame_length: int,
+    frame_step: int,
+    fft_length: int,
+    num_mel_bins: int = 80,
+    lower_edge_hertz: float = 80.0,
+    upper_edge_hertz: float = 7600.0,
+    epsilon: float = 1e-12,
+) -> tf.Tensor:
+    """
+    Make log mel spectrogram from PCM audio dataset.
+
+    :param audio: pcm format audio tensor shaped [TimeStep, NumChannel]
+    :param sample_rate: sampling rate of audio
+    :param frame_length: window length in samples
+    :param frame_step: number of samples to step
+    :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
+    :param num_mel_bins: how many bands in the resulting mel spectrum
+    :param lower_edge_hertz: lower bound on the frequencies to be included in the mel spectrum
+    :param upper_edge_hertz: desired top edge of the highest frequency band
+    :param epsilon: added to mel spectrogram before log to prevent nan calculation
+    """
+    # Shape: [NumFrame, NumChannel, NumFFTUniqueBins]
+    spectrogram = make_spectrogram(audio, frame_length, frame_step, fft_length)
+
+    num_spectrogram_bins = fft_length // 2 + 1
+    # Shape: [NumFFTUniqueBins, NumMelFilterbank]
+    mel_filterbank = tf.signal.linear_to_mel_weight_matrix(
+        num_mel_bins, num_spectrogram_bins, sample_rate, lower_edge_hertz, upper_edge_hertz
+    )
+
+    # Sahpe: [NumFrame, NumChannel, NumMelFilterbank]
+    mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
+    log_mel_sepctrogram = tf.math.log(mel_spectrogram + epsilon)
+    return log_mel_sepctrogram
