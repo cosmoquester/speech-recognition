@@ -1,12 +1,39 @@
 import pytest
 import tensorflow as tf
 
-from speech_recognition.model import SampleModel
+from speech_recognition.model import LAS, AdditiveAttention
 
 
-def test_model():
-    model = SampleModel(15)
-    model(tf.constant([[10, 11, 12]]))
+@pytest.mark.parametrize(
+    "hidden_dim,sequence_length,batch_size", [(128, 13, 5), (256, 33, 43), (111, 111, 111), (1, 1, 1)]
+)
+def test_additive_attention(hidden_dim, sequence_length, batch_size):
+    attention = AdditiveAttention(hidden_dim)
+    query = tf.random.normal([batch_size, hidden_dim])
+    key = tf.random.normal([batch_size, sequence_length, hidden_dim])
+    value = tf.random.normal([batch_size, sequence_length, hidden_dim])
 
-    with pytest.raises(Exception):
-        model(tf.constant([[30]]))
+    output = attention(query, key, value)
+    tf.debugging.assert_equal(tf.shape(output), [batch_size, 1, hidden_dim])
+
+
+@pytest.mark.parametrize(
+    "vocab_size,hidden_dim,num_encoder_layers,num_decoder_layers,batch_size,audio_dim,audio_sequence_length,num_tokens",
+    [(12345, 122, 1, 2, 3, 88, 12, 8), (3030, 320, 3, 5, 1, 34, 33, 1), (12, 12, 12, 12, 12, 12, 12, 12)],
+)
+def test_las(
+    vocab_size,
+    hidden_dim,
+    num_encoder_layers,
+    num_decoder_layers,
+    batch_size,
+    audio_dim,
+    audio_sequence_length,
+    num_tokens,
+):
+    las = LAS(vocab_size, hidden_dim, num_encoder_layers, num_decoder_layers)
+    audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim])
+    tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
+
+    output = las((audio, tokens))
+    tf.debugging.assert_equal(tf.shape(output), [batch_size, vocab_size])
