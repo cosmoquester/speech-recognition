@@ -75,11 +75,11 @@ class LAS(tf.keras.Model):
     ):
         super(LAS, self).__init__(**kwargs)
 
-        self.conv1 = Conv1D(32, 3, stride=2, name="conv1")
-        self.conv2 = Conv1D(32, 3, stride=2, name="conv2")
+        self.conv1 = Conv1D(32, 3, strides=2, name="conv1")
+        self.conv2 = Conv1D(32, 3, strides=2, name="conv2")
 
         self.encoder_layers = [
-            Bidirectional(LSTM(hidden_dim, return_state=True, return_sequences=True), name=f"encoder_layer{i}")
+            Bidirectional(LSTM(hidden_dim // 2, return_state=True, return_sequences=True), name=f"encoder_layer{i}")
             for i in range(num_encoder_layers)
         ]
 
@@ -102,16 +102,17 @@ class LAS(tf.keras.Model):
         decoder_input = self.masking(self.embedding(decoder_input))
 
         # Encode
-        # audio: [NumBatch, TimeStep // 4, HiddenDim]
+        # audio: [NumBatch, TimeStep // 4, HiddenDim // 2]
         states = None
         for encoder_layer in self.encoder_layers:
             audio, *states = encoder_layer(audio, states)
 
         # Decode
         # decoder_input: [NumBatch, NumTokens, HiddenDim]
+        states = tf.concat([states[0], states[2]], axis=-1), tf.concat([states[1], states[3]], axis=-1)
         decoder_input, *states = self.decoder_layers[0](decoder_input, states)
         for decoder_layer in self.decoder_layers[1:]:
-            context = self.attention(states, audio, audio)
+            context = self.attention(states[0], audio, audio)
             decoder_input, *states = decoder_layer(tf.concat([context, decoder_input], axis=1), states)
             decoder_input = decoder_input[:, 1:, :]
 
