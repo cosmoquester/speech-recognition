@@ -1,7 +1,7 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM, Bidirectional, Conv1D, Dense, Embedding, Masking
+from tensorflow.keras.layers import LSTM, Conv1D, Dense, Embedding, Masking
 
 
 class AdditiveAttention(tf.keras.layers.Layer):
@@ -41,6 +41,63 @@ class AdditiveAttention(tf.keras.layers.Layer):
         return context
 
 
+class BiLSTM(tf.keras.layers.Layer):
+    """
+    Custom Bi-directional RNN Wrapper because of issue.
+    https://github.com/tensorflow/tensorflow/issues/48880
+
+    Arguments:
+        units: Integer, the hidden dimension size of seq2seq rnn.
+        dropout: Float, dropout rate.
+        recurrent_dropout: Float, reccurent dropout rate.
+    Call arguments:
+        inputs: [BatchSize, SequenceLength, HiddenDim]
+    Output Shape:
+        output: `[BatchSize, SequenceLength, HiddenDim]`
+        state: `[BatchSize, HiddenDim]`
+    """
+
+    def __init__(
+        self,
+        units: int,
+        dropout: float = 0.0,
+        recurrent_dropout: float = 0.0,
+        **kwargs,
+    ):
+        super(BiLSTM, self).__init__(**kwargs)
+
+        self.forward_rnn = LSTM(
+            units=units,
+            return_sequences=True,
+            return_state=True,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            name="forward_rnn",
+        )
+        self.backward_rnn = LSTM(
+            units=units,
+            return_sequences=True,
+            return_state=True,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            go_backwards=True,
+            name="backward_rnn",
+        )
+
+    def call(self, inputs: tf.Tensor, initial_state: Optional[tf.Tensor] = None) -> List:
+        if initial_state is None:
+            forward_states = None
+            backward_states = None
+        else:
+            forward_states = initial_state[:2]
+            backward_states = initial_state[2:]
+
+        forward_output, *forward_states = self.forward_rnn(inputs, initial_state=forward_states)
+        backward_output, *backward_states = self.backward_rnn(inputs, initial_state=backward_states)
+        output = tf.concat([forward_output, backward_output], axis=-1)
+        return [output] + forward_states + backward_states
+
+
 class LAS(tf.keras.Model):
     """
     This is Listen, Attend and Spell(LAS) model for speech recognition.
@@ -78,10 +135,7 @@ class LAS(tf.keras.Model):
         self.conv1 = Conv1D(32, 3, strides=2, name="conv1")
         self.conv2 = Conv1D(32, 3, strides=2, name="conv2")
 
-        self.encoder_layers = [
-            Bidirectional(LSTM(hidden_dim // 2, return_state=True, return_sequences=True), name=f"encoder_layer{i}")
-            for i in range(num_encoder_layers)
-        ]
+        self.encoder_layers = [BiLSTM(hidden_dim // 2, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
 
         self.embedding = Embedding(vocab_size, hidden_dim)
         self.masking = Masking(pad_id)
@@ -109,7 +163,7 @@ class LAS(tf.keras.Model):
 
         # Decode
         # decoder_input: [NumBatch, NumTokens, HiddenDim]
-        states = tf.concat([states[0], states[2]], axis=-1), tf.concat([states[1], states[3]], axis=-1)
+        states = tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)
         decoder_input, *states = self.decoder_layers[0](decoder_input, states)
         for decoder_layer in self.decoder_layers[1:]:
             context = self.attention(states[0], audio, audio)
