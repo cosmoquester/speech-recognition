@@ -121,7 +121,7 @@ class Listener(tf.keras.layers.Layer):
         self.conv2 = Conv1D(32, 3, strides=2, name="conv2")
         self.encoder_layers = [BiLSTM(hidden_dim, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
 
-    def call(self, audio: tf.Tensor, training: Optional[bool] = None):
+    def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
         # [BatchSize, TimeStep // 4, 32]
         audio = self.conv2(self.conv1(audio))
 
@@ -167,7 +167,9 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         self.attention = AdditiveAttention(hidden_dim, name="attention")
         self.feedforward = Dense(vocab_size, name="feedfoward")
 
-    def call(self, audio_output: tf.Tensor, decoder_input: tf.Tensor, states: List, training: Optional[bool] = None):
+    def call(
+        self, audio_output: tf.Tensor, decoder_input: tf.Tensor, states: List, training: Optional[bool] = None
+    ) -> tf.Tensor:
         # [BatchSize, NumTokens, HiddenDim]
         decoder_input = self.masking(self.embedding(decoder_input))
 

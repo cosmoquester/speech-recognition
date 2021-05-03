@@ -1,17 +1,18 @@
 import argparse
-import json
-import sys
 from math import ceil
 
 import tensorflow as tf
+import tensorflow_text as text
+from omegaconf import OmegaConf
 
-from speech_recognition.data import get_dataset
-from speech_recognition.model import SampleModel
+from speech_recognition.data import get_dataset, make_log_mel_spectrogram, make_train_examples
+from speech_recognition.model import LAS
 from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
 # fmt: off
 parser = argparse.ArgumentParser()
-parser.add_argument("--model-config-path", type=str, required=True, help="model config file")
+parser.add_argument("--config-path", type=str, required=True, help="model config file")
+parser.add_argument("--sp-model-path", required=True, help="sentencepiece model path")
 parser.add_argument("--dataset-path", required=True, help="a text file or multiple files ex) *.txt")
 parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
 parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
@@ -25,6 +26,8 @@ parser.add_argument("--warmup-steps", type=int)
 parser.add_argument("--batch-size", type=int, default=2)
 parser.add_argument("--dev-batch-size", type=int, default=2)
 parser.add_argument("--total-dataset-size", type=int, default=1000)
+parser.add_argument("--max-audio-length", type=int, default=65536, help="max audio sequence length")
+parser.add_argument("--max-token-length", type=int, default=128, help="max token sequence length")
 parser.add_argument("--num-dev-dataset", type=int, default=2)
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
@@ -46,7 +49,7 @@ if __name__ == "__main__":
     with tf.io.gfile.GFile(path_join(args.output_path, "argument_configs.txt"), "w") as fout:
         for k, v in vars(args).items():
             fout.write(f"{k}: {v}\n")
-    tf.io.gfile.copy(args.model_config_path, path_join(args.output_path, "model_config.json"))
+    tf.io.gfile.copy(args.config_path, path_join(args.output_path, "config.yml"))
 
     with get_device_strategy(args.device).scope():
         if args.mixed_precision:
@@ -56,22 +59,59 @@ if __name__ == "__main__":
             logger.info("Use Mixed Precision FP16")
 
         # Construct Dataset
-        dataset_files = tf.io.gfile.glob(args.dataset_path)
-        if not dataset_files:
-            logger.error("[Error] Dataset path is invalid!")
-            sys.exit(1)
+        with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
+            tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-        dataset = get_dataset(dataset_files).shuffle(args.shuffle_buffer_size)
-        train_dataset = dataset.skip(args.num_dev_dataset).batch(args.batch_size)
-        dev_dataset = dataset.take(args.num_dev_dataset).batch(max(args.batch_size, args.dev_batch_size))
+        # Load Config
+        with tf.io.gfile.GFile(args.config_path) as f:
+            config = OmegaConf.load(f)
+
+        shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
+        map_log_mel_spectrogram = tf.function(
+            lambda audio, text: (
+                shape_squeeze(
+                    make_log_mel_spectrogram(
+                        audio,
+                        config.sample_rate,
+                        config.frame_length,
+                        config.frame_step,
+                        config.fft_length,
+                        config.num_mel_bins,
+                        config.lower_edge_hertz,
+                        config.upper_edge_hertz,
+                    )
+                ),
+                text,
+            )
+        )
+        dataset = (
+            get_dataset(args.dataset_path, tokenizer, config.desired_channels)
+            .shuffle(args.shuffle_buffer_size)
+            .map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .unbatch()
+        )
+        train_dataset = dataset.skip(args.num_dev_dataset).padded_batch(
+            args.batch_size, (([args.max_audio_length, config.num_mel_bins], [args.max_token_length]), ())
+        )
+
+        dev_dataset = dataset.take(args.num_dev_dataset).padded_batch(
+            args.dev_batch_size, (([args.max_audio_length, config.num_mel_bins], [args.max_token_length]), ())
+        )
 
         if args.steps_per_epoch:
-            train_dataset.repeat()
+            train_dataset = train_dataset.repeat()
             logger.info("Repeat dataset")
 
         # Model Initialize
-        with tf.io.gfile.GFile(args.model_config_path) as f:
-            model = SampleModel(**json.load(f))
+        with tf.io.gfile.GFile(args.config_path) as f:
+            model = LAS(
+                config.vocab_size,
+                config.hidden_dim,
+                config.num_encoder_layers,
+                config.num_decoder_layers,
+                config.pad_id,
+            )
 
         # Load pretrained model
         if args.pretrained_model_path:
@@ -86,8 +126,8 @@ if __name__ == "__main__":
                     total_steps, args.learning_rate, args.min_learning_rate, args.warmup_rate, args.warmup_steps
                 )
             ),
-            loss=tf.keras.losses.BinaryCrossentropy(),
-            metrics=[tf.keras.metrics.BinaryAccuracy()],
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+            metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="accuracy")],
         )
         logger.info("Model compiling complete")
         logger.info("Start training")
@@ -103,7 +143,7 @@ if __name__ == "__main__":
                     path_join(
                         args.output_path,
                         "models",
-                        "model-{epoch}epoch-{val_loss:.4f}loss_{val_binary_accuracy:.4f}acc.ckpt",
+                        "model-{epoch}epoch-{val_loss:.4f}loss_{val_accuracy:.4f}acc.ckpt",
                     ),
                     save_weights_only=True,
                     verbose=1,

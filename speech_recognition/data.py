@@ -113,3 +113,19 @@ def make_log_mel_spectrogram(
     mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
     log_mel_sepctrogram = tf.math.log(mel_spectrogram + epsilon)
     return log_mel_sepctrogram
+
+
+@tf.function
+def make_train_examples(source_tokens: tf.Tensor, target_tokens: tf.Tensor):
+    """Make training examples from source and target tokens."""
+    # Make training example
+    num_examples = tf.shape(target_tokens)[0] - 1
+
+    # [NumExamples, EncoderSequence]
+    encoder_input = tf.repeat([source_tokens], repeats=[num_examples], axis=0)
+    # [NumExamples, DecoderSequence]
+    decoder_input = target_tokens * tf.sequence_mask(tf.range(1, num_examples + 1), num_examples + 1, tf.int32)
+    # [NumExamples]
+    labels = target_tokens[1:]
+
+    return (encoder_input, decoder_input), labels
