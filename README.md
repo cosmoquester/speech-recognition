@@ -51,27 +51,28 @@ $ python -m scripts.train \
                         model config file
   --sp-model-path SP_MODEL_PATH
                         sentencepiece model path
-  --dataset-path DATASET_PATH
-                        a text file or multiple files ex) *.txt
-  --pretrained-model-path PRETRAINED_MODEL_PATH
-                        pretrained model checkpoint
-  --shuffle-buffer-size SHUFFLE_BUFFER_SIZE
+  --dataset-paths DATASET_PATHS
+                        a tsv dataset file or multiple files ex) *.tsv
   --output-path OUTPUT_PATH
                         output directory to save log and model checkpoints
+  --pretrained-model-path PRETRAINED_MODEL_PATH
+                        pretrained model checkpoint
   --epochs EPOCHS
   --steps-per-epoch STEPS_PER_EPOCH
   --learning-rate LEARNING_RATE
   --min-learning-rate MIN_LEARNING_RATE
   --warmup-rate WARMUP_RATE
   --warmup-steps WARMUP_STEPS
-  --batch-size BATCH_SIZE
-  --dev-batch-size DEV_BATCH_SIZE
-  --total-dataset-size TOTAL_DATASET_SIZE
   --max-audio-length MAX_AUDIO_LENGTH
                         max audio sequence length
   --max-token-length MAX_TOKEN_LENGTH
                         max token sequence length
+  --batch-size BATCH_SIZE
+  --dev-batch-size DEV_BATCH_SIZE
+  --total-dataset-size TOTAL_DATASET_SIZE
   --num-dev-dataset NUM_DEV_DATASET
+  --shuffle-buffer-size SHUFFLE_BUFFER_SIZE
+  --use-tfrecord        use tfrecord dataset
   --tensorboard-update-freq TENSORBOARD_UPDATE_FREQ
   --disable-mixed-precision
                         Use mixed precision FP16
