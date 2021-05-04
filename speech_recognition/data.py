@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from typing import Optional, Tuple
 
 import tensorflow as tf
@@ -7,7 +8,7 @@ import tensorflow_text as text
 
 
 def get_dataset(
-    dataset_file_path: str,
+    dataset_paths: str,
     tokenizer: text.SentencepieceTokenizer,
     desired_channels: int = -1,
     resample: Optional[int] = None,
@@ -16,19 +17,20 @@ def get_dataset(
     Load dataset from tsv file. The dataset file has to header.
     The first column has audio file path and second column has recognized sentence.
 
-    :param dataset_file_path: dataset file path
+    :param dataset_paths: dataset file path glob pattern. all dataset files is in same directory.
     :param tokenizer: sentencepiece tokenizer
     :param desired_channels: number of sample channels wanted. default is auto
     :param resample: resample rate (default no resample)
     :return: PCM audio and tokenized sentence dataset
     """
+    dataset_list = tf.io.gfile.glob(dataset_paths)
     dataset = tf.data.experimental.CsvDataset(
-        dataset_file_path, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
+        dataset_list, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
     )
-    if dataset_file_path.startswith("gs://"):
-        data_dir_path = os.path.dirname(dataset_file_path) + "/"
+    if dataset_list[0].startswith("gs://"):
+        data_dir_path = os.path.dirname(dataset_list[0]) + "/"
     else:
-        dataset_file_path = os.path.abspath(dataset_file_path)
+        dataset_file_path = os.path.abspath(dataset_list[0])
         data_dir_path = os.path.dirname(dataset_file_path) + os.sep
 
     @tf.function
@@ -51,6 +53,24 @@ def get_dataset(
         return audio, tokens
 
     return dataset.map(_load_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+
+def get_tfrecord_dataset(dataset_paths: str) -> tf.data.Dataset:
+    """Read TFRecord dataset file and construct tensorflow dataset"""
+
+    dataset_list = tf.io.gfile.glob(dataset_paths)
+    decompose = tf.function(
+        lambda serialized_example: (
+            tf.io.parse_tensor(serialized_example[0], tf.float32),
+            tf.io.parse_tensor(serialized_example[1], tf.int32),
+        )
+    )
+    dataset = (
+        tf.data.TFRecordDataset(dataset_list, "GZIP")
+        .map(partial(tf.io.parse_tensor, out_type=tf.string))
+        .map(decompose)
+    )
+    return dataset
 
 
 @tf.function
