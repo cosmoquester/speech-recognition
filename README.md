@@ -12,6 +12,22 @@
 - [On the Choice of Modeling Unit for Sequence-to-Sequence Speech Recognition](https://arxiv.org/abs/1902.01955)
 - [SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition](https://arxiv.org/abs/1904.08779v3)
 
+# Dataset Format
+
+- Dataset File is tsv(tab separated values) format.
+- The dataset file has to **header line**.
+- The 1st column is **audio file path** relative to directory that contains dataset tsv file.
+- The 2nd column is **recognized text**.
+- Refer to `tests/data/dataset.tsv` file.
+
+FilePath | Text
+---|---
+audio/001.wav | 안녕하세요
+audio/002.wav | 반갑습니다
+audio/003.wav | 근데 이름이 어떻게 되세요?
+... | ...
+- This is tsv file example.
+
 # Train
 
 ## Example
