@@ -73,9 +73,9 @@ class LoggingCallback(tf.keras.callbacks.Callback):
         self.logs = {}
 
 
-def get_logger() -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
     """Return logger for logging"""
-    logger = logging.getLogger()
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s"))
