@@ -61,14 +61,17 @@ if __name__ == "__main__":
             tf.keras.mixed_precision.experimental.set_policy(policy)
             logger.info("Use Mixed Precision FP16")
 
-        # Construct Dataset
+        # Load Tokenizer
+        logger.info(f"Load Tokenizer from {args.sp_model_path}")
         with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
             tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
         # Load Config
+        logger.info(f"Load Config from {args.config_path}")
         with tf.io.gfile.GFile(args.config_path) as f:
             config = OmegaConf.load(f)
 
+        # Construct Dataset
         shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
         map_log_mel_spectrogram = tf.function(
             lambda audio, text: (
