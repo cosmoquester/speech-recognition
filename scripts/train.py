@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow_text as text
 from omegaconf import OmegaConf
 
-from speech_recognition.data import get_dataset, make_log_mel_spectrogram, make_train_examples
+from speech_recognition.data import get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram, make_train_examples
 from speech_recognition.model import LAS
 from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
@@ -13,22 +13,25 @@ from speech_recognition.utils import LRScheduler, get_device_strategy, get_logge
 parser = argparse.ArgumentParser()
 parser.add_argument("--config-path", type=str, required=True, help="model config file")
 parser.add_argument("--sp-model-path", required=True, help="sentencepiece model path")
-parser.add_argument("--dataset-path", required=True, help="a text file or multiple files ex) *.txt")
-parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
-parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
+parser.add_argument("--dataset-paths", required=True, help="a tsv dataset file or multiple files ex) *.tsv")
 parser.add_argument("--output-path", default="output", help="output directory to save log and model checkpoints")
+
+parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--steps-per-epoch", type=int, default=None)
 parser.add_argument("--learning-rate", type=float, default=2e-3)
 parser.add_argument("--min-learning-rate", type=float, default=1e-5)
 parser.add_argument("--warmup-rate", type=float, default=0.06)
 parser.add_argument("--warmup-steps", type=int)
+parser.add_argument("--max-audio-length", type=int, default=65536, help="max audio sequence length")
+parser.add_argument("--max-token-length", type=int, default=128, help="max token sequence length")
 parser.add_argument("--batch-size", type=int, default=2)
 parser.add_argument("--dev-batch-size", type=int, default=2)
 parser.add_argument("--total-dataset-size", type=int, default=1000)
-parser.add_argument("--max-audio-length", type=int, default=65536, help="max audio sequence length")
-parser.add_argument("--max-token-length", type=int, default=128, help="max token sequence length")
 parser.add_argument("--num-dev-dataset", type=int, default=2)
+parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
+
+parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
@@ -38,7 +41,7 @@ parser.add_argument("--device", type=str, default="CPU", help="device to use (TP
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    logger = get_logger()
+    logger = get_logger("train")
 
     if args.seed:
         set_random_seed(args.seed)
@@ -84,10 +87,17 @@ if __name__ == "__main__":
                 text,
             )
         )
+        if args.use_tfrecord:
+            logger.info(f"Load TFRecord dataset from {args.dataset_paths}")
+            dataset = get_tfrecord_dataset(args.dataset_paths)
+        else:
+            logger.info(f"Load dataset from {args.dataset_paths}")
+            dataset = get_dataset(args.dataset_paths, tokenizer, config.desired_channels).map(
+                map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
+            )
+
         dataset = (
-            get_dataset(args.dataset_path, tokenizer, config.desired_channels)
-            .shuffle(args.shuffle_buffer_size)
-            .map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset.shuffle(args.shuffle_buffer_size)
             .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .unbatch()
         )
