@@ -35,7 +35,7 @@ parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord da
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
-parser.add_argument("--device", type=str, default="CPU", help="device to use (TPU or GPU or CPU)")
+parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
 # fmt: on
 
 if __name__ == "__main__":
@@ -104,12 +104,15 @@ if __name__ == "__main__":
             .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .unbatch()
         )
+
+        audio_pad_length = None if args.device != "TPU" else args.max_audio_length
+        token_pad_length = None if args.device != "TPU" else args.max_token_length
         train_dataset = dataset.skip(args.num_dev_dataset).padded_batch(
-            args.batch_size, (([args.max_audio_length, config.num_mel_bins], [args.max_token_length]), ())
+            args.batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         )
 
         dev_dataset = dataset.take(args.num_dev_dataset).padded_batch(
-            args.dev_batch_size, (([args.max_audio_length, config.num_mel_bins], [args.max_token_length]), ())
+            args.dev_batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         )
 
         if args.steps_per_epoch:
