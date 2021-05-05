@@ -10,7 +10,6 @@ import tensorflow_text as text
 def get_dataset(
     dataset_paths: str,
     tokenizer: text.SentencepieceTokenizer,
-    desired_channels: int = -1,
     resample: Optional[int] = None,
 ) -> tf.data.Dataset:
     """
@@ -19,7 +18,6 @@ def get_dataset(
 
     :param dataset_paths: dataset file path glob pattern. all dataset files is in same directory.
     :param tokenizer: sentencepiece tokenizer
-    :param desired_channels: number of sample channels wanted. default is auto
     :param resample: resample rate (default no resample)
     :return: PCM audio and tokenized sentence dataset
     """
@@ -43,7 +41,8 @@ def get_dataset(
         :return: audio and sentence tensor
         """
         # audio: [TimeStep, NumChannel]
-        audio, sample_rate = tf.audio.decode_wav(tf.io.read_file(data_dir_path + audio_file_path), desired_channels)
+        audio_io_tensor = tfio.audio.AudioIOTensor(data_dir_path + audio_file_path, tf.int16)
+        audio, sample_rate = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0, audio_io_tensor.rate
         # tokens: [NumTokens]
         tokens = tokenizer.tokenize(sentence)
 

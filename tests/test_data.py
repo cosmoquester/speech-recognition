@@ -37,6 +37,7 @@ def test_get_dataset(dataset):
     assert len(data[0]) == 2
     tf.debugging.assert_equal(tf.shape(audio_sample), [66150, 1])
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
+    tf.debugging.assert_equal(data[0][0], data[1][0])
 
 
 def test_get_tfrecord_dataset(tfrecord_dataset):

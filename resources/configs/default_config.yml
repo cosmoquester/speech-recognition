@@ -1,5 +1,3 @@
-# Number of channels (-1: auto)
-desired_channels: -1
 # Audio Sample rate
 sample_rate: 22050
 # Frame Length for STFT
