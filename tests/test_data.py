@@ -90,15 +90,7 @@ def test_make_spectrogram(dataset, frame_length, frame_step, fft_length):
     ],
 )
 def test_make_log_mel_spectrogram(
-    dataset,
-    tfrecord_dataset,
-    sample_rate,
-    frame_length,
-    frame_step,
-    fft_length,
-    num_mel_bins,
-    lower_edge_hertz,
-    upper_edge_hertz,
+    dataset, sample_rate, frame_length, frame_step, fft_length, num_mel_bins, lower_edge_hertz, upper_edge_hertz
 ):
     audio_timestep = tf.shape(next(iter(dataset))[0])[0]
     dataset = dataset.map(

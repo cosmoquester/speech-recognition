@@ -95,7 +95,7 @@ if __name__ == "__main__":
             dataset = get_tfrecord_dataset(args.dataset_paths)
         else:
             logger.info(f"Load dataset from {args.dataset_paths}")
-            dataset = get_dataset(args.dataset_paths, tokenizer, config.desired_channels).map(
+            dataset = get_dataset(args.dataset_paths, tokenizer).map(
                 map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
             )
 
