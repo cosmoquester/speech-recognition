@@ -74,7 +74,7 @@ if __name__ == "__main__":
         dataset = (
             get_dataset(file_path, tokenizer)
             .map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            .map(serialize)
+            .map(serialize, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         )
         writer = tf.data.experimental.TFRecordWriter(output_path, "GZIP")
         writer.write(dataset)
