@@ -1,11 +1,11 @@
 # Audio Sample rate
-sample_rate: 22050
+sample_rate: 16000
 # Frame Length for STFT
-frame_length: 1024
+frame_length: 320
 # Frame Step for STFT
-frame_step: 512
+frame_step: 160
 # FFT Length for STFT
-fft_length: 1024
+fft_length: 320
 # Number of Mel bins for mel-spectrogram
 num_mel_bins: 80
 # Lowest frequency for mel-spectrogram
