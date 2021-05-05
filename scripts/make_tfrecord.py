@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
         # Write TFRecordFile
         dataset = (
-            get_dataset(file_path, tokenizer, config.desired_channels)
+            get_dataset(file_path, tokenizer)
             .map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .map(serialize)
         )
