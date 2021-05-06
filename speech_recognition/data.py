@@ -9,6 +9,8 @@ import tensorflow_text as text
 
 def get_dataset(
     dataset_paths: str,
+    file_format: str,
+    sample_rate: int,
     tokenizer: text.SentencepieceTokenizer,
     resample: Optional[int] = None,
 ) -> tf.data.Dataset:
@@ -41,8 +43,13 @@ def get_dataset(
         :return: audio and sentence tensor
         """
         # audio: [TimeStep, NumChannel]
-        audio_io_tensor = tfio.audio.AudioIOTensor(data_dir_path + audio_file_path, tf.int16)
-        audio, sample_rate = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0, audio_io_tensor.rate
+        if file_format in ["flac", "wav"]:
+            audio_io_tensor = tfio.audio.AudioIOTensor(data_dir_path + audio_file_path, tf.int16)
+            audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
+        elif file_format in ["pcm"]:
+            audio_int_tensor = tf.io.decode_raw(tf.io.read_file(data_dir_path + audio_file_path), tf.int16)
+            audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
+
         # tokens: [NumTokens]
         tokens = tokenizer.tokenize(sentence)
 
