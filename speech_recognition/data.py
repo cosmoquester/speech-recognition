@@ -43,12 +43,15 @@ def get_dataset(
         :return: audio and sentence tensor
         """
         # audio: [TimeStep, NumChannel]
+        audio_abs_path = data_dir_path + audio_file_path
         if file_format in ["flac", "wav"]:
-            audio_io_tensor = tfio.audio.AudioIOTensor(data_dir_path + audio_file_path, tf.int16)
+            audio_io_tensor = tfio.audio.AudioIOTensor(audio_abs_path, tf.int16)
             audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
-        elif file_format in ["pcm"]:
-            audio_int_tensor = tf.io.decode_raw(tf.io.read_file(data_dir_path + audio_file_path), tf.int16)
+        elif file_format == "pcm":
+            audio_int_tensor = tf.io.decode_raw(tf.io.read_file(audio_abs_path), tf.int16)
             audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
+        elif file_format == "mp3":
+            audio = tfio.audio.AudioIOTensor(audio_abs_path, tf.float32).to_tensor()
 
         # tokens: [NumTokens]
         tokens = tokenizer.tokenize(sentence)
