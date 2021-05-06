@@ -19,6 +19,8 @@ def get_dataset(
     The first column has audio file path and second column has recognized sentence.
 
     :param dataset_paths: dataset file path glob pattern. all dataset files is in same directory.
+    :param file_format: audio file format. one of ["wav", "flac", "mp3", "pcm"]
+    :param sample_rate: audio sample rate
     :param tokenizer: sentencepiece tokenizer
     :param resample: resample rate (default no resample)
     :return: PCM audio and tokenized sentence dataset
@@ -52,6 +54,8 @@ def get_dataset(
             audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
         elif file_format == "mp3":
             audio = tfio.audio.AudioIOTensor(audio_abs_path, tf.float32).to_tensor()
+        else:
+            raise ValueError(f"File Format: {file_format} is not valid!")
 
         # tokens: [NumTokens]
         tokens = tokenizer.tokenize(sentence)
