@@ -5,49 +5,39 @@ import tensorflow as tf
 
 from speech_recognition.data import get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram, make_spectrogram
 
-DATA_DIR = os.path.dirname(__file__)
-WAV_DATASET_PATH = os.path.join(DATA_DIR, "data", "wav_dataset.tsv")
-PCM_DATASET_PATH = os.path.join(DATA_DIR, "data", "pcm_dataset.tsv")
-TFRECORD_DATASET_PATH = os.path.join(DATA_DIR, "data", "dataset.tfrecord")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+WAV_DATASET_PATH = os.path.join(DATA_DIR, "wav_dataset.tsv")
+PCM_DATASET_PATH = os.path.join(DATA_DIR, "pcm_dataset.tsv")
+MP3_DATASET_PATH = os.path.join(DATA_DIR, "mp3_dataset.tsv")
+TFRECORD_DATASET_PATH = os.path.join(DATA_DIR, "dataset.tfrecord")
 
 
-@pytest.fixture(scope="module")
-def tokenizer():
-    class PseudoTokenizer:
-        def tokenize(self, sentence):
-            return tf.strings.unicode_decode(sentence, "UTF8")
-
-    return PseudoTokenizer()
+class PseudoTokenizer:
+    @staticmethod
+    def tokenize(sentence):
+        return tf.strings.unicode_decode(sentence, "UTF8")
 
 
-@pytest.fixture(scope="module")
-def wav_dataset(tokenizer):
-    return get_dataset(WAV_DATASET_PATH, "wav", 22050, tokenizer)
+wav_dataset = get_dataset(WAV_DATASET_PATH, "wav", 22050, PseudoTokenizer)
+pcm_dataset = get_dataset(PCM_DATASET_PATH, "pcm", 22050, PseudoTokenizer)
+mp3_dataset = get_dataset(MP3_DATASET_PATH, "mp3", 22050, PseudoTokenizer)
+tfrecord_dataset = get_tfrecord_dataset(TFRECORD_DATASET_PATH)
 
 
-@pytest.fixture(scope="module")
-def pcm_dataset(tokenizer):
-    return get_dataset(PCM_DATASET_PATH, "pcm", 22050, tokenizer)
-
-
-@pytest.fixture(scope="module")
-def tfrecord_dataset():
-    return get_tfrecord_dataset(TFRECORD_DATASET_PATH)
-
-
-def test_get_dataset(wav_dataset, pcm_dataset):
+def test_get_dataset():
     data = list(wav_dataset)
     audio_sample, token_sample = data[0]
     pcm_audio_sample = next(iter(pcm_dataset))[0]
+    mp3_audio_sample = next(iter(mp3_dataset))[0]
 
     assert len(data) == 2
     assert len(data[0]) == 2
     tf.debugging.assert_equal(tf.shape(audio_sample), [66150, 1])
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
-    tf.debugging.assert_equal(data[0][0], data[1][0], pcm_audio_sample)
+    tf.debugging.assert_equal(data[0][0], data[1][0], pcm_audio_sample, mp3_audio_sample)
 
 
-def test_get_tfrecord_dataset(tfrecord_dataset):
+def test_get_tfrecord_dataset():
     data = list(tfrecord_dataset)
     log_mel_spectrogram_sample, token_sample = data[0]
 
@@ -57,7 +47,7 @@ def test_get_tfrecord_dataset(tfrecord_dataset):
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
 
 
-def test_make_tfrecord_dataset(wav_dataset, tfrecord_dataset):
+def test_make_tfrecord_dataset():
     dataset = wav_dataset.map(
         lambda audio, text: (make_log_mel_spectrogram(audio, 22050, 1024, 512, 1024, 80, 80.0, 7600.0), text)
     )
@@ -75,7 +65,7 @@ def test_make_tfrecord_dataset(wav_dataset, tfrecord_dataset):
         (512, 512, 256),
     ],
 )
-def test_make_spectrogram(wav_dataset, frame_length, frame_step, fft_length):
+def test_make_spectrogram(frame_length, frame_step, fft_length):
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
     dataset = wav_dataset.map(lambda audio, _: make_spectrogram(audio, frame_length, frame_step, fft_length))
     audio_sample = next(iter(dataset))
@@ -97,7 +87,7 @@ def test_make_spectrogram(wav_dataset, frame_length, frame_step, fft_length):
     ],
 )
 def test_make_log_mel_spectrogram(
-    wav_dataset, sample_rate, frame_length, frame_step, fft_length, num_mel_bins, lower_edge_hertz, upper_edge_hertz
+    sample_rate, frame_length, frame_step, fft_length, num_mel_bins, lower_edge_hertz, upper_edge_hertz
 ):
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
     dataset = wav_dataset.map(

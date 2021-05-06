@@ -1,4 +1,4 @@
-# File Format ('pcm', 'wav', 'flac')
+# File Format ("pcm", "wav", "flac", "mp3")
 file_format: pcm
 # Audio Sample rate
 sample_rate: 16000
