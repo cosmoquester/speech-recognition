@@ -1,0 +1,27 @@
+# File Format ('pcm', 'wav', 'flac')
+file_format: wav
+# Audio Sample rate
+sample_rate: 16000
+# Frame Length for STFT
+frame_length: 320
+# Frame Step for STFT
+frame_step: 160
+# FFT Length for STFT
+fft_length: 320
+# Number of Mel bins for mel-spectrogram
+num_mel_bins: 80
+# Lowest frequency for mel-spectrogram
+lower_edge_hertz: 80.0
+# Largest frequency for mel-spectrogram
+upper_edge_hertz: 7600.0
+
+# Vocab Size
+vocab_size: 16000
+# Hidden Dimension
+hidden_dim: 1024
+# Encoder Layers
+num_encoder_layers: 4
+# Decoder Layers
+num_decoder_layers: 2
+# Pad Token ID
+pad_id: 0

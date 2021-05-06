@@ -1,3 +1,5 @@
+# File Format ('pcm', 'wav', 'flac')
+file_format: pcm
 # Audio Sample rate
 sample_rate: 16000
 # Frame Length for STFT
@@ -14,7 +16,7 @@ lower_edge_hertz: 80.0
 upper_edge_hertz: 7600.0
 
 # Vocab Size
-vocab_size: 16000
+vocab_size: 8000
 # Hidden Dimension
 hidden_dim: 1024
 # Encoder Layers
