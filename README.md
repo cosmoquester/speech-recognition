@@ -85,3 +85,42 @@ $ python -m scripts.train \
 - `max-audio-length` is max audio frame length. This means the number of maximum timestep of log mel spectrogram.
 - `max-token-length` is max token number.
 - `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)d
+
+# Make TFRecord
+
+## Example
+
+You can convert dataset into TFRecord format like below example.
+```sh
+$ python -m scripts.make_tfrecord \
+    --config-path resources/configs/kspon_config.yml \
+    --dataset-paths tests/data/pcm_dataset.tsv \
+    --output-dir . \
+    --sp-model-path resources/sp-models/sp_model_unigram_16K_libri.model
+[2021-05-07 01:30:26,802] [+] Number of Dataset Files: 1
+[2021-05-07 01:30:26,802] [+] Load Config From resources/configs/kspon_config.yml
+[2021-05-07 01:30:26,809] [+] Load Tokenizer From resources/sp-models/sp_model_unigram_16K_libri.model
+2021-05-07 01:30:26.811088: I tensorflow/compiler/jit/xla_cpu_device.cc:41] Not creating XLA devices, tf_xla_enable_xla_devices not set
+2021-05-07 01:30:26.811555: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+[2021-05-07 01:30:26,841] [+] Start Saving Dataset...
+  0%|           | 0/1 [00:00<?, ?it/s]2021-05-07 01:30:27.592450: I tensorflow/compiler/mlir/mlir_graph_optimization_pass.cc:116] None of the MLIR optimization passes are enabled (registered 2)
+100%|██████| 1/1 [00:00<00:00,  1.11it/s]
+[2021-05-07 01:30:27,749] [+] Done
+```
+
+## Argument
+
+```text
+  --config-path CONFIG_PATH
+                        config file for processing dataset
+  --dataset-paths DATASET_PATHS
+                        dataset file path glob pattern
+  --output-dir OUTPUT_DIR
+                        output directory path, default is input dataset file
+                        directoruy
+  --sp-model-path SP_MODEL_PATH
+                        sentencepiece model path
+```
+- The arguments is same as train script arguments.
+- The output TFRecord file contains already pre-processed audio tensors and tokenized tensors, so you can train with only TFRecord file without tsv or audio files.
