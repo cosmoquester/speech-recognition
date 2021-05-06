@@ -23,8 +23,9 @@ parser.add_argument("--learning-rate", type=float, default=2e-3)
 parser.add_argument("--min-learning-rate", type=float, default=1e-5)
 parser.add_argument("--warmup-rate", type=float, default=0.06)
 parser.add_argument("--warmup-steps", type=int)
-parser.add_argument("--max-audio-length", type=int, default=65536, help="max audio sequence length")
-parser.add_argument("--max-token-length", type=int, default=128, help="max token sequence length")
+parser.add_argument("--max-audio-length", type=int, default=4096, help="max audio sequence length")
+parser.add_argument("--max-token-length", type=int, default=256, help="max token sequence length")
+parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
 parser.add_argument("--batch-size", type=int, default=2)
 parser.add_argument("--dev-batch-size", type=int, default=2)
 parser.add_argument("--total-dataset-size", type=int, default=1000)
@@ -99,12 +100,36 @@ if __name__ == "__main__":
                 map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
             )
 
+        # Apply max over policy
+        filter_fn = tf.function(
+            lambda audio, text: tf.math.logical_and(
+                tf.shape(audio)[0] <= args.max_audio_length, tf.size(text) <= args.max_token_length
+            )
+        )
+        slice_fn = tf.function(
+            lambda audio, text: (
+                audio[: args.max_audio_length],
+                text[: args.max_token_length],
+            )
+        )
+
+        if args.max_over_policy == "filter":
+            dataset = dataset.filter(filter_fn)
+            logger.info(f"Filter examples whose audio or token length is over than max value")
+        elif args.max_over_policy == "slice":
+            dataset = dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            logger.info(f"Slice examples whose audio or token length is over than max value")
+        elif args.device == "TPU":
+            raise RuntimeError(f"You should set max-over-sequence-policy with TPU!")
+
+        # Shuffle & Make train example
         dataset = (
             dataset.shuffle(args.shuffle_buffer_size)
             .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .unbatch()
         )
 
+        # Padded Batch
         audio_pad_length = None if args.device != "TPU" else args.max_audio_length
         token_pad_length = None if args.device != "TPU" else args.max_token_length
         train_dataset = dataset.skip(args.num_dev_dataset).padded_batch(
