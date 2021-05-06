@@ -50,7 +50,10 @@ def get_dataset(
             audio_io_tensor = tfio.audio.AudioIOTensor(audio_abs_path, tf.int16)
             audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
         elif file_format == "pcm":
-            audio_int_tensor = tf.io.decode_raw(tf.io.read_file(audio_abs_path), tf.int16)
+            audio_binary = tf.io.read_file(audio_abs_path)
+            if tf.strings.length(audio_binary) % 2 == 1:
+                audio_binary += "\x00"
+            audio_int_tensor = tf.io.decode_raw(audio_binary, tf.int16)
             audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
         elif file_format == "mp3":
             audio = tfio.audio.AudioIOTensor(audio_abs_path, tf.float32).to_tensor()
