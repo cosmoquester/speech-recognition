@@ -1,5 +1,5 @@
 # File Format ("pcm", "wav", "flac", "mp3")
-file_format: pcm
+file_format: wav
 # Audio Sample rate
 sample_rate: 16000
 # Frame Length for STFT
