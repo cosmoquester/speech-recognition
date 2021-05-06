@@ -86,7 +86,7 @@ def get_logger(name: str) -> logging.Logger:
 def path_join(*paths: Iterable[str]) -> str:
     """Join paths to string local paths and google storage paths also"""
     if paths[0].startswith("gs://"):
-        return "/".join((path.strip("/") for path in paths))
+        return "/".join((path.rstrip("/") for path in paths))
     return os.path.join(*paths)
 
 
