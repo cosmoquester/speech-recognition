@@ -231,5 +231,5 @@ class LAS(tf.keras.Model):
         audio_input, decoder_input = inputs
 
         audio_output, *states = self.listener(audio_input)
-        output = self.attend_and_speller.call(audio_output, decoder_input, states)
+        output = self.attend_and_speller(audio_output, decoder_input, states)
         return output
