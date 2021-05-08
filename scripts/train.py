@@ -13,9 +13,11 @@ from speech_recognition.utils import LRScheduler, get_device_strategy, get_logge
 parser = argparse.ArgumentParser()
 parser.add_argument("--config-path", type=str, required=True, help="model config file")
 parser.add_argument("--sp-model-path", required=True, help="sentencepiece model path")
-parser.add_argument("--dataset-paths", required=True, help="a tsv dataset file or multiple files ex) *.tsv")
+parser.add_argument("--train-dataset-paths", required=True, help="a tsv/tfrecord dataset file or multiple files ex) *.tsv")
+parser.add_argument("--dev-dataset-paths", required=True, help="a tsv/tfrecord dataset file or multiple files ex) *.tsv")
 parser.add_argument("--output-path", default="output", help="output directory to save log and model checkpoints")
 
+parser.add_argument("--train-dataset-size", type=int, required=True, help="the number of training dataset examples")
 parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--steps-per-epoch", type=int, default=None)
@@ -28,8 +30,6 @@ parser.add_argument("--max-token-length", type=int, default=256, help="max token
 parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
 parser.add_argument("--batch-size", type=int, default=2)
 parser.add_argument("--dev-batch-size", type=int, default=2)
-parser.add_argument("--total-dataset-size", type=int, default=1000)
-parser.add_argument("--num-dev-dataset", type=int, default=2)
 parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
 
 parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
@@ -92,13 +92,17 @@ if __name__ == "__main__":
             )
         )
         if args.use_tfrecord:
-            logger.info(f"Load TFRecord dataset from {args.dataset_paths}")
-            dataset = get_tfrecord_dataset(args.dataset_paths)
+            logger.info(f"Load TFRecord train dataset from {args.train_dataset_paths}")
+            train_dataset = get_tfrecord_dataset(args.train_dataset_paths)
+            logger.info(f"Load TFRecord dev dataset from {args.train_dataset_paths}")
+            dev_dataset = get_tfrecord_dataset(args.train_dataset_paths)
         else:
-            logger.info(f"Load dataset from {args.dataset_paths}")
-            dataset = get_dataset(args.dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
+            logger.info(f"Load train dataset from {args.dev_dataset_paths}")
+            train_dataset = get_dataset(args.dev_dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
                 map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
             )
+            logger.info(f"Load dev dataset from {args.dev_dataset_paths}")
+            dev_dataset = get_tfrecord_dataset(args.dev_dataset_paths)
 
         # Apply max over policy
         filter_fn = tf.function(
@@ -114,29 +118,31 @@ if __name__ == "__main__":
         )
 
         if args.max_over_policy == "filter":
-            dataset = dataset.filter(filter_fn)
+            train_dataset = train_dataset.filter(filter_fn)
+            dev_dataset = dev_dataset.filter(filter_fn)
             logger.info(f"Filter examples whose audio or token length is over than max value")
         elif args.max_over_policy == "slice":
-            dataset = dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            train_dataset = train_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dev_dataset = dev_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             logger.info(f"Slice examples whose audio or token length is over than max value")
         elif args.device == "TPU":
             raise RuntimeError(f"You should set max-over-sequence-policy with TPU!")
 
         # Shuffle & Make train example
-        dataset = (
-            dataset.shuffle(args.shuffle_buffer_size)
+        train_dataset = (
+            train_dataset.shuffle(args.shuffle_buffer_size)
             .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .unbatch()
         )
+        dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE).unbatch()
 
         # Padded Batch
         audio_pad_length = None if args.device != "TPU" else args.max_audio_length
         token_pad_length = None if args.device != "TPU" else args.max_token_length
-        train_dataset = dataset.skip(args.num_dev_dataset).padded_batch(
+        train_dataset = train_dataset.padded_batch(
             args.batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         )
-
-        dev_dataset = dataset.take(args.num_dev_dataset).padded_batch(
+        dev_dataset = dev_dataset.padded_batch(
             args.dev_batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         )
 
@@ -160,7 +166,7 @@ if __name__ == "__main__":
             logger.info("Loaded weights of model")
 
         # Model Compile
-        total_steps = ceil((args.total_dataset_size - args.num_dev_dataset) / args.batch_size) * args.epochs
+        total_steps = ceil(args.train_dataset_size / args.batch_size) * args.epochs
         model.compile(
             optimizer=tf.optimizers.Adam(
                 LRScheduler(

@@ -35,9 +35,11 @@ audio/003.wav | 근데 이름이 어떻게 되세요?
 You can start training by running script like below example.
 ```sh
 $ python -m scripts.train \
-    --config-path resources/configs/default_config.yml \
-    --sp-model-path some_sentence_piece.model \
-    --dataset-path tests/data/dataset.tsv \
+    --config-path resources/configs/libri_config.yml \
+    --sp-model-path resources/sp-models/sp_model_unigram_16K_libri.model \
+    --train-dataset-paths tests/data/pcm_dataset.tsv \
+    --dev-dataset-paths tests/data/pcm_dataset.tsv
+    --train-dataset-size 10000 \
     --steps-per-epoch 100 \
     --epochs 10 \
     --disable-mixed-precision \
@@ -51,10 +53,16 @@ $ python -m scripts.train \
                         model config file
   --sp-model-path SP_MODEL_PATH
                         sentencepiece model path
-  --dataset-paths DATASET_PATHS
-                        a tsv dataset file or multiple files ex) *.tsv
+  --train-dataset-paths TRAIN_DATASET_PATHS
+                        a tsv/tfrecord dataset file or multiple files ex)
+                        *.tsv
+  --dev-dataset-paths DEV_DATASET_PATHS
+                        a tsv/tfrecord dataset file or multiple files ex)
+                        *.tsv
   --output-path OUTPUT_PATH
                         output directory to save log and model checkpoints
+  --train-dataset-size TRAIN_DATASET_SIZE
+                        the number of training dataset examples
   --pretrained-model-path PRETRAINED_MODEL_PATH
                         pretrained model checkpoint
   --epochs EPOCHS
@@ -67,17 +75,18 @@ $ python -m scripts.train \
                         max audio sequence length
   --max-token-length MAX_TOKEN_LENGTH
                         max token sequence length
+  --max-over-policy {filter,slice}
+                        policy for sequence whose length is over max
   --batch-size BATCH_SIZE
   --dev-batch-size DEV_BATCH_SIZE
-  --total-dataset-size TOTAL_DATASET_SIZE
-  --num-dev-dataset NUM_DEV_DATASET
   --shuffle-buffer-size SHUFFLE_BUFFER_SIZE
   --use-tfrecord        use tfrecord dataset
   --tensorboard-update-freq TENSORBOARD_UPDATE_FREQ
   --disable-mixed-precision
                         Use mixed precision FP16
   --seed SEED           Set random seed
-  --device DEVICE       device to use (TPU or GPU or CPU)
+  --device {CPU,GPU,TPU}
+                        device to use (TPU or GPU or CPU)
 ```
 - `config-path` is config file path for training. example config is `resources/configs/default_config.yml`.
 - `sp-model-path` is sentencepiece model path to tokenize target text.
