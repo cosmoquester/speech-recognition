@@ -141,7 +141,7 @@ if __name__ == "__main__":
         token_pad_length = None if args.device != "TPU" else args.max_token_length
         train_dataset = train_dataset.padded_batch(
             args.batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
-        )
+        ).prefetch(tf.data.experimental.AUTOTUNE)
         dev_dataset = dev_dataset.padded_batch(
             args.dev_batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         )
