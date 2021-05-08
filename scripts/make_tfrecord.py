@@ -12,7 +12,7 @@ from speech_recognition.utils import get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser()
-parser.add_argument("--config-path", type=str, required=True, help="config file for processing dataset")
+parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
 parser.add_argument("--dataset-paths", type=str, required=True, help="dataset file path glob pattern")
 parser.add_argument("--output-dir", type=str, help="output directory path, default is input dataset file directoruy")
 parser.add_argument("--sp-model-path", type=str, default="resources/sp-model/sp_model_unigram_16K.model", help="sentencepiece model path")
@@ -26,8 +26,8 @@ if __name__ == "__main__":
     logger.info(f"[+] Number of Dataset Files: {len(input_files)}")
 
     # Load Config
-    logger.info(f"[+] Load Config From {args.config_path}")
-    with tf.io.gfile.GFile(args.config_path) as f:
+    logger.info(f"[+] Load Config From {args.data_config_path}")
+    with tf.io.gfile.GFile(args.data_config_path) as f:
         config = OmegaConf.load(f)
 
     # Load Sentencepiece model

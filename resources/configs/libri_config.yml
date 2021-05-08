@@ -14,14 +14,7 @@ num_mel_bins: 80
 lower_edge_hertz: 80.0
 # Largest frequency for mel-spectrogram
 upper_edge_hertz: 7600.0
-
-# Vocab Size
-vocab_size: 16000
-# Hidden Dimension
-hidden_dim: 1024
-# Encoder Layers
-num_encoder_layers: 4
-# Decoder Layers
-num_decoder_layers: 2
-# Pad Token ID
-pad_id: 0
+# Max audio log mel spectrogram sequence length
+max_audio_length: 2048
+# Max token sequence length
+max_token_length: 128

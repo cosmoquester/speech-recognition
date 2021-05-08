@@ -35,7 +35,8 @@ audio/003.wav | 근데 이름이 어떻게 되세요?
 You can start training by running script like below example.
 ```sh
 $ python -m scripts.train \
-    --config-path resources/configs/libri_config.yml \
+    --data-config-path resources/configs/libri_config.yml \
+    --model-config-path resources/configs/las_small.yml \
     --sp-model-path resources/sp-models/sp_model_unigram_16K_libri.model \
     --train-dataset-paths tests/data/pcm_dataset.tsv \
     --dev-dataset-paths tests/data/pcm_dataset.tsv
@@ -49,7 +50,9 @@ $ python -m scripts.train \
 ## Arguments
 
 ```text
-  --config-path CONFIG_PATH
+  --data-config-path DATA_CONFIG_PATH
+                        data processing config file
+  --model-config-path MODEL_CONFIG_PATH
                         model config file
   --sp-model-path SP_MODEL_PATH
                         sentencepiece model path
@@ -59,10 +62,10 @@ $ python -m scripts.train \
   --dev-dataset-paths DEV_DATASET_PATHS
                         a tsv/tfrecord dataset file or multiple files ex)
                         *.tsv
-  --output-path OUTPUT_PATH
-                        output directory to save log and model checkpoints
   --train-dataset-size TRAIN_DATASET_SIZE
                         the number of training dataset examples
+  --output-path OUTPUT_PATH
+                        output directory to save log and model checkpoints
   --pretrained-model-path PRETRAINED_MODEL_PATH
                         pretrained model checkpoint
   --epochs EPOCHS
@@ -71,15 +74,11 @@ $ python -m scripts.train \
   --min-learning-rate MIN_LEARNING_RATE
   --warmup-rate WARMUP_RATE
   --warmup-steps WARMUP_STEPS
-  --max-audio-length MAX_AUDIO_LENGTH
-                        max audio sequence length
-  --max-token-length MAX_TOKEN_LENGTH
-                        max token sequence length
-  --max-over-policy {filter,slice}
-                        policy for sequence whose length is over max
   --batch-size BATCH_SIZE
   --dev-batch-size DEV_BATCH_SIZE
   --shuffle-buffer-size SHUFFLE_BUFFER_SIZE
+  --max-over-policy {filter,slice}
+                        policy for sequence whose length is over max
   --use-tfrecord        use tfrecord dataset
   --tensorboard-update-freq TENSORBOARD_UPDATE_FREQ
   --disable-mixed-precision
@@ -88,11 +87,10 @@ $ python -m scripts.train \
   --device {CPU,GPU,TPU}
                         device to use (TPU or GPU or CPU)
 ```
-- `config-path` is config file path for training. example config is `resources/configs/default_config.yml`.
+- `data-config-path` is config file path for data processing. example config is `resources/configs/libri_config.yml`.
+- `model-config-path` is config model file path for model initialize. default config is `resources/configs/las_small.yml`.
 - `sp-model-path` is sentencepiece model path to tokenize target text.
 - `pretrained-model-path` is pretrained model checkpoint path if you continue to train from pretrained model.
-- `max-audio-length` is max audio frame length. This means the number of maximum timestep of log mel spectrogram.
-- `max-token-length` is max token number.
 - `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)d
 
 # Make TFRecord

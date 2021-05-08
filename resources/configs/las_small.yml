@@ -1,0 +1,10 @@
+# Vocab Size
+vocab_size: 16000
+# Hidden Dimension
+hidden_dim: 256
+# Encoder Layers
+num_encoder_layers: 3
+# Decoder Layers
+num_decoder_layers: 2
+# Pad Token ID
+pad_id: 0

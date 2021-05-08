@@ -11,26 +11,25 @@ from speech_recognition.utils import LRScheduler, get_device_strategy, get_logge
 
 # fmt: off
 parser = argparse.ArgumentParser()
-parser.add_argument("--config-path", type=str, required=True, help="model config file")
-parser.add_argument("--sp-model-path", required=True, help="sentencepiece model path")
+parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
+parser.add_argument("--model-config-path", type=str, default="resources/configs/las_small.yml", help="model config file")
+parser.add_argument("--sp-model-path", type=str, default=None, help="sentencepiece model path")
 parser.add_argument("--train-dataset-paths", required=True, help="a tsv/tfrecord dataset file or multiple files ex) *.tsv")
 parser.add_argument("--dev-dataset-paths", required=True, help="a tsv/tfrecord dataset file or multiple files ex) *.tsv")
+parser.add_argument("--train-dataset-size", type=int, required=True, help="the number of training dataset examples")
 parser.add_argument("--output-path", default="output", help="output directory to save log and model checkpoints")
 
-parser.add_argument("--train-dataset-size", type=int, required=True, help="the number of training dataset examples")
 parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--steps-per-epoch", type=int, default=None)
-parser.add_argument("--learning-rate", type=float, default=2e-3)
+parser.add_argument("--learning-rate", type=float, default=2e-4)
 parser.add_argument("--min-learning-rate", type=float, default=1e-5)
-parser.add_argument("--warmup-rate", type=float, default=0.06)
+parser.add_argument("--warmup-rate", type=float, default=0.00)
 parser.add_argument("--warmup-steps", type=int)
-parser.add_argument("--max-audio-length", type=int, default=4096, help="max audio sequence length")
-parser.add_argument("--max-token-length", type=int, default=256, help="max token sequence length")
-parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
-parser.add_argument("--batch-size", type=int, default=2)
-parser.add_argument("--dev-batch-size", type=int, default=2)
+parser.add_argument("--batch-size", type=int, default=512)
+parser.add_argument("--dev-batch-size", type=int, default=512)
 parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
+parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
 
 parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
@@ -53,7 +52,8 @@ if __name__ == "__main__":
     with tf.io.gfile.GFile(path_join(args.output_path, "argument_configs.txt"), "w") as fout:
         for k, v in vars(args).items():
             fout.write(f"{k}: {v}\n")
-    tf.io.gfile.copy(args.config_path, path_join(args.output_path, "config.yml"))
+    tf.io.gfile.copy(args.data_config_path, path_join(args.output_path, "data-config.yml"))
+    tf.io.gfile.copy(args.model_config_path, path_join(args.output_path, "model-config.yml"))
 
     with get_device_strategy(args.device).scope():
         if args.mixed_precision:
@@ -62,14 +62,9 @@ if __name__ == "__main__":
             tf.keras.mixed_precision.experimental.set_policy(policy)
             logger.info("Use Mixed Precision FP16")
 
-        # Load Tokenizer
-        logger.info(f"Load Tokenizer from {args.sp_model_path}")
-        with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
-            tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
-
         # Load Config
-        logger.info(f"Load Config from {args.config_path}")
-        with tf.io.gfile.GFile(args.config_path) as f:
+        logger.info(f"Load Data Config from {args.data_config_path}")
+        with tf.io.gfile.GFile(args.data_config_path) as f:
             config = OmegaConf.load(f)
 
         # Construct Dataset
@@ -97,6 +92,11 @@ if __name__ == "__main__":
             logger.info(f"Load TFRecord dev dataset from {args.train_dataset_paths}")
             dev_dataset = get_tfrecord_dataset(args.train_dataset_paths)
         else:
+            # Load Tokenizer
+            logger.info(f"Load Tokenizer from {args.sp_model_path}")
+            with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
+                tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
+
             logger.info(f"Load train dataset from {args.dev_dataset_paths}")
             train_dataset = get_dataset(args.dev_dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
                 map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
@@ -107,13 +107,13 @@ if __name__ == "__main__":
         # Apply max over policy
         filter_fn = tf.function(
             lambda audio, text: tf.math.logical_and(
-                tf.shape(audio)[0] <= args.max_audio_length, tf.size(text) <= args.max_token_length
+                tf.shape(audio)[0] <= config.max_audio_length, tf.size(text) <= config.max_token_length
             )
         )
         slice_fn = tf.function(
             lambda audio, text: (
-                audio[: args.max_audio_length],
-                text[: args.max_token_length],
+                audio[: config.max_audio_length],
+                text[: config.max_token_length],
             )
         )
 
@@ -137,8 +137,8 @@ if __name__ == "__main__":
         dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE).unbatch()
 
         # Padded Batch
-        audio_pad_length = None if args.device != "TPU" else args.max_audio_length
-        token_pad_length = None if args.device != "TPU" else args.max_token_length
+        audio_pad_length = None if args.device != "TPU" else config.max_audio_length
+        token_pad_length = None if args.device != "TPU" else config.max_token_length
         train_dataset = train_dataset.padded_batch(
             args.batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
         ).prefetch(tf.data.experimental.AUTOTUNE)
@@ -151,13 +151,14 @@ if __name__ == "__main__":
             logger.info("Repeat dataset")
 
         # Model Initialize
-        with tf.io.gfile.GFile(args.config_path) as f:
+        with tf.io.gfile.GFile(args.model_config_path) as f:
+            model_config = OmegaConf.load(f)
             model = LAS(
-                config.vocab_size,
-                config.hidden_dim,
-                config.num_encoder_layers,
-                config.num_decoder_layers,
-                config.pad_id,
+                model_config.vocab_size,
+                model_config.hidden_dim,
+                model_config.num_encoder_layers,
+                model_config.num_decoder_layers,
+                model_config.pad_id,
             )
 
         # Load pretrained model
