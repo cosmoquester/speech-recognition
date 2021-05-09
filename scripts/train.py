@@ -33,6 +33,7 @@ parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], 
 
 parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
+parser.add_argument("--validation-freq", type=int, default=20, help="validation frequency (every this epoch)")
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
 parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
@@ -184,6 +185,7 @@ if __name__ == "__main__":
         model.fit(
             train_dataset,
             validation_data=dev_dataset,
+            validation_freq=args.validation_freq,
             epochs=args.epochs,
             steps_per_epoch=args.steps_per_epoch,
             callbacks=[
