@@ -84,7 +84,7 @@ class BiLSTM(tf.keras.layers.Layer):
             name="backward_rnn",
         )
 
-    def call(self, inputs: tf.Tensor, initial_state: Optional[tf.Tensor] = None) -> List:
+    def call(self, inputs: tf.Tensor, mask: tf.Tensor, initial_state: Optional[tf.Tensor] = None) -> List:
         if initial_state is None:
             forward_states = None
             backward_states = None
@@ -92,8 +92,8 @@ class BiLSTM(tf.keras.layers.Layer):
             forward_states = initial_state[:2]
             backward_states = initial_state[2:]
 
-        forward_output, *forward_states = self.forward_rnn(inputs, initial_state=forward_states)
-        backward_output, *backward_states = self.backward_rnn(inputs, initial_state=backward_states)
+        forward_output, *forward_states = self.forward_rnn(inputs, mask=mask, initial_state=forward_states)
+        backward_output, *backward_states = self.backward_rnn(inputs, mask=mask, initial_state=backward_states)
         output = tf.concat([forward_output, backward_output], axis=-1)
         return [output] + forward_states + backward_states
 
@@ -105,33 +105,55 @@ class Listener(tf.keras.layers.Layer):
     Arguments:
         hidden_dim: Integer, the hidden dimension size of SampleModel.
         num_encoder_layers: Integer, the number of seq2seq encoder.
+        pad_id: Float, pad id for audio padding
     Call arguments:
         audio: A 3D tensor, with shape of `[BatchSize, TimeStep, DimAudio]`.
         training: Python boolean indicating whether the layer should behave in
             training mode or in inference mode. Only relevant when `dropout` or
             `recurrent_dropout` is used.
     Output Shape:
-        audio: `[BatchSize, TimeStep // 4, HiddenDim]`
+        audio: `[BatchSize, CEIL(TimeStep // 4), HiddenDim]`
     """
 
-    def __init__(self, hidden_dim: int, num_encoder_layers: int, **kwargs):
+    def __init__(self, hidden_dim: int, num_encoder_layers: int, pad_id: float, **kwargs):
         super(Listener, self).__init__(**kwargs)
 
-        self.conv1 = Conv1D(32, 3, strides=2, name="conv1")
-        self.conv2 = Conv1D(32, 3, strides=2, name="conv2")
+        self.filter_size = 3
+        self.strides = 2
+        self.pad_id = tf.constant(pad_id, tf.float32)
+
+        self.conv1 = Conv1D(32, self.filter_size, strides=self.strides, name="conv1")
+        self.conv2 = Conv1D(32, self.filter_size, strides=self.strides, name="conv2")
         self.encoder_layers = [BiLSTM(hidden_dim, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
 
     def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
-        # [BatchSize, TimeStep // 4, 32]
-        audio = self.conv2(self.conv1(audio))
+        # [BatchSize, CEIL(TimeStep // 4)]
+        mask = self._audio_mask(audio)
+
+        # [BatchSize, CEIL(TimeStep // 4), 32]
+        audio = self.conv2(self.conv1((audio)))
 
         # Encode
-        # audio: [BatchSize, TimeStep // 4, HiddenDim]
+        # audio: [BatchSize, CEIL(TimeStep // 4), HiddenDim]
         states = None
         for encoder_layer in self.encoder_layers:
-            audio, *states = encoder_layer(audio, states)
+            audio, *states = encoder_layer(audio, mask, states)
 
         return [audio] + states
+
+    @tf.function(input_signature=[tf.TensorSpec([None, None, None])])
+    def _audio_mask(self, audio):
+        mask = tf.reduce_any(audio != self.pad_id, axis=2)
+        batch_size, sequence_length = tf.unstack(tf.shape(mask), 2)
+        sequence_length -= self.filter_size - self.strides
+        sequence_length = sequence_length // self.strides
+        sequence_length -= self.filter_size - self.strides
+        sequence_length = sequence_length // self.strides
+        sequence_length *= self.strides ** 2
+
+        mask = tf.reshape(mask[:, :sequence_length], [batch_size, -1, self.strides ** 2])
+        mask = tf.reduce_any(mask, axis=2)
+        return mask
 
 
 class AttendAndSpeller(tf.keras.layers.Layer):
@@ -158,8 +180,8 @@ class AttendAndSpeller(tf.keras.layers.Layer):
     def __init__(self, vocab_size: int, hidden_dim: int, num_decoder_layers: int, pad_id: int, **kwargs):
         super(AttendAndSpeller, self).__init__(**kwargs)
 
+        self.pad_id = pad_id
         self.embedding = Embedding(vocab_size, hidden_dim)
-        self.masking = Masking(pad_id)
         self.decoder_layers = [
             LSTM(hidden_dim, return_state=True, return_sequences=True, name=f"decoder_layer{i}")
             for i in range(num_decoder_layers)
@@ -170,16 +192,19 @@ class AttendAndSpeller(tf.keras.layers.Layer):
     def call(
         self, audio_output: tf.Tensor, decoder_input: tf.Tensor, states: List, training: Optional[bool] = None
     ) -> tf.Tensor:
+        # [BatchSize, NumTokens]
+        mask = decoder_input != self.pad_id
         # [BatchSize, NumTokens, HiddenDim]
-        decoder_input = self.masking(self.embedding(decoder_input))
+        decoder_input = self.embedding(decoder_input)
 
         # Decode
         # decoder_input: [BatchSize, NumTokens, HiddenDim]
         states = tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)
-        decoder_input, *states = self.decoder_layers[0](decoder_input, states)
+        decoder_input, *states = self.decoder_layers[0](decoder_input, states, mask=mask)
+        mask = tf.concat([mask[:, :1], mask], axis=1)
         for decoder_layer in self.decoder_layers[1:]:
             context = self.attention(states[0], audio_output, audio_output)
-            decoder_input, *states = decoder_layer(tf.concat([context, decoder_input], axis=1), states)
+            decoder_input, *states = decoder_layer(tf.concat([context, decoder_input], axis=1), states, mask=mask)
             decoder_input = decoder_input[:, 1:, :]
 
         # [BatchSize, VocabSize]
@@ -221,7 +246,7 @@ class LAS(tf.keras.Model):
     ):
         super(LAS, self).__init__(**kwargs)
 
-        self.listener = Listener(hidden_dim // 2, num_encoder_layers, name="listener")
+        self.listener = Listener(hidden_dim // 2, num_encoder_layers, pad_id, name="listener")
         self.attend_and_speller = AttendAndSpeller(
             vocab_size, hidden_dim, num_decoder_layers, pad_id, name="attend_and_speller"
         )
