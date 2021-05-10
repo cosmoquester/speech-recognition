@@ -131,7 +131,7 @@ class Listener(tf.keras.layers.Layer):
         mask = self._audio_mask(audio)
 
         # [BatchSize, CEIL(TimeStep // 4), 32]
-        audio = self.conv2(self.conv1((audio)))
+        audio = self.conv2(self.conv1(audio))
 
         # Encode
         # audio: [BatchSize, CEIL(TimeStep // 4), HiddenDim]

@@ -161,6 +161,13 @@ if __name__ == "__main__":
                 model_config.num_decoder_layers,
                 model_config.pad_id,
             )
+            model(
+                (
+                    tf.keras.Input([None, config.num_mel_bins], dtype=tf.float32),
+                    tf.keras.Input([None], dtype=tf.int32),
+                )
+            )
+            model.summary()
 
         # Load pretrained model
         if args.pretrained_model_path:
