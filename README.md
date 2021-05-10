@@ -93,6 +93,53 @@ $ python -m scripts.train \
 - `pretrained-model-path` is pretrained model checkpoint path if you continue to train from pretrained model.
 - `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)d
 
+# Inference
+
+## Example
+
+You can infer with trained model to your audio files like below example.
+```sh
+$ python -m scripts.inference \
+  --data-config-path resources/configs/kspon_config.yml \
+  --model-config-path resources/configs/las_small.yml \
+  --audio-files "data/*.pcm" \
+  --model-path model-30epoch-3.1351loss_0.4070acc.ckpt \
+  --sp-model-path resources/sp-models/sp_model_unigram_8K_kspon.model \
+  --batch-size 3 --device GPU \
+  --beam-size 5
+2021-05-11 00:38:45.031911: I tensorflow/core/platform/profile_utils/cpu_utils.cc:112] CPU Frequency: 2198800000 Hz
+2021-05-11 00:38:54.666780: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcublas.so.11
+2021-05-11 00:38:55.030704: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcublasLt.so.11
+2021-05-11 00:38:55.036582: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudnn.so.8
+[2021-05-11 00:39:00,981] Ended Inference, Start to save...
+[2021-05-11 00:39:00,983] Saved (audio path,decoded sentence) pairs to output.tsv
+```
+Then inferenced files is saved to output path.
+
+## Argument
+
+```sh
+  --data-config-path DATA_CONFIG_PATH
+                        data processing config file
+  --model-config-path MODEL_CONFIG_PATH
+                        model config file
+  --audio-files AUDIO_FILES
+                        an audio file or glob pattern of multiple files ex) *.pcm
+  --model-path MODEL_PATH
+                        pretrained model checkpoint
+  --output-path OUTPUT_PATH
+                        output tsv file path to save generated sentences
+  --sp-model-path SP_MODEL_PATH
+                        sentencepiece model path
+  --batch-size BATCH_SIZE
+  --beam-size BEAM_SIZE
+                        not given, use greedy search else beam search with this value as beam size
+  --mixed-precision     Use mixed precision FP16
+  --device DEVICE       device to train model
+```
+- ``audio-files`` is audio files glob pattern. i.e) "*.pcm", "data[0-9]+.wav"
+- ``model-path`` is tensorflow model checkpoint path.
+
 # Make TFRecord
 
 ## Example

@@ -16,12 +16,11 @@ from speech_recognition.utils import get_device_strategy, get_logger
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
 parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
 parser.add_argument("--model-config-path", type=str, required=True, help="model config file")
-parser.add_argument("--dataset-path", required=True, help="an audio file or glob pattern of multiple files ex) *.pcm")
+parser.add_argument("--audio-files", required=True, help="an audio file or glob pattern of multiple files ex) *.pcm")
 parser.add_argument("--model-path", type=str, required=True, help="pretrained model checkpoint")
-parser.add_argument("--output-path", default="output.tsv", help="output file path to save generated sentences")
+parser.add_argument("--output-path", default="output.tsv", help="output tsv file path to save generated sentences")
 parser.add_argument("--sp-model-path", type=str, required=True, help="sentencepiece model path")
 parser.add_argument("--batch-size", type=int, default=512)
-parser.add_argument("--prefetch-buffer-size", type=int, default=100)
 parser.add_argument("--beam-size", type=int, default=0, help="not given, use greedy search else beam search with this value as beam size")
 parser.add_argument("--mixed-precision", action="store_true", help="Use mixed precision FP16")
 parser.add_argument("--device", type=str, default="CPU", help="device to train model")
@@ -43,7 +42,7 @@ if __name__ == "__main__":
         tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
     bos_id, eos_id = tokenizer.tokenize("").numpy().tolist()
 
-    dataset_files = sorted(tf.io.gfile.glob(args.dataset_path))
+    dataset_files = sorted(tf.io.gfile.glob(args.audio_files))
     if not dataset_files:
         logger.error("[Error] Dataset path is invalid!")
         sys.exit(1)
