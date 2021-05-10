@@ -193,7 +193,7 @@ if __name__ == "__main__":
                     path_join(
                         args.output_path,
                         "models",
-                        "model-{epoch}epoch-{val_loss:.4f}loss_{val_accuracy:.4f}acc.ckpt",
+                        "model-{epoch}epoch-{loss:.4f}loss_{accuracy:.4f}acc.ckpt",
                     ),
                     save_weights_only=True,
                     verbose=1,
