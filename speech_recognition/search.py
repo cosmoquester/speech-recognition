@@ -1,5 +1,3 @@
-from functools import partial
-
 import tensorflow as tf
 
 from .model import LAS
