@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 
 from speech_recognition.data import load_audio_file, make_log_mel_spectrogram
 from speech_recognition.model import LAS
-from speech_recognition.searcher import Searcher
+from speech_recognition.search import Searcher
 from speech_recognition.utils import get_device_strategy, get_logger
 
 # fmt: off
