@@ -35,40 +35,14 @@ def get_dataset(
         dataset_file_path = os.path.abspath(dataset_list[0])
         data_dir_path = os.path.dirname(dataset_file_path) + os.sep
 
-    @tf.function
-    def _load_example(audio_file_path: tf.Tensor, sentence: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-        """
-        Load audio file and tokenize sentence.
+    load_example = tf.function(
+        lambda file_path, text: (
+            load_audio_file(data_dir_path + file_path, sample_rate, file_format, resample),
+            tokenizer.tokenize(text),
+        )
+    )
 
-        :param audio_file_path: string tensor that is audio file path
-        :param sentence: string tensor that is recognized sentence from audio
-        :return: audio and sentence tensor
-        """
-        # audio: [TimeStep, NumChannel]
-        audio_abs_path = data_dir_path + audio_file_path
-        if file_format in ["flac", "wav"]:
-            audio_io_tensor = tfio.audio.AudioIOTensor(audio_abs_path, tf.int16)
-            audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
-        elif file_format == "pcm":
-            audio_binary = tf.io.read_file(audio_abs_path)
-            if tf.strings.length(audio_binary) % 2 == 1:
-                audio_binary += "\x00"
-            audio_int_tensor = tf.io.decode_raw(audio_binary, tf.int16)
-            audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
-        elif file_format == "mp3":
-            audio = tfio.audio.AudioIOTensor(audio_abs_path, tf.float32).to_tensor()
-        else:
-            raise ValueError(f"File Format: {file_format} is not valid!")
-
-        # tokens: [NumTokens]
-        tokens = tokenizer.tokenize(sentence)
-
-        # Resample
-        if resample is not None:
-            audio = tfio.audio.resample(audio, sample_rate, resample, name="resampling")
-        return audio, tokens
-
-    return dataset.map(_load_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    return dataset.map(load_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def get_tfrecord_dataset(dataset_paths: str) -> tf.data.Dataset:
@@ -87,6 +61,40 @@ def get_tfrecord_dataset(dataset_paths: str) -> tf.data.Dataset:
         .map(decompose)
     )
     return dataset
+
+
+@tf.function
+def load_audio_file(
+    audio_file_path: tf.Tensor, sample_rate: int, file_format: str, resample: Optional[float] = None
+) -> Tuple[tf.Tensor, tf.Tensor]:
+    """
+    Load audio file and tokenize sentence.
+
+    :param audio_file_path: string tensor that is audio file path
+    :param sample_rate: sample rate of audio
+    :param file_format: audio format, one of [flac, wav, pcm, mp3]
+    :param resample: resample rate if it needs, else None
+    :return: loaded audio tensor
+    """
+    # audio: [TimeStep, NumChannel]
+    if file_format in ["flac", "wav"]:
+        audio_io_tensor = tfio.audio.AudioIOTensor(audio_file_path, tf.int16)
+        audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
+    elif file_format == "pcm":
+        audio_binary = tf.io.read_file(audio_file_path)
+        if tf.strings.length(audio_binary) % 2 == 1:
+            audio_binary += "\x00"
+        audio_int_tensor = tf.io.decode_raw(audio_binary, tf.int16)
+        audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
+    elif file_format == "mp3":
+        audio = tfio.audio.AudioIOTensor(audio_file_path, tf.float32).to_tensor()
+    else:
+        raise ValueError(f"File Format: {file_format} is not valid!")
+
+    # Resample
+    if resample is not None:
+        audio = tfio.audio.resample(audio, sample_rate, resample, name="resampling")
+    return audio
 
 
 @tf.function
