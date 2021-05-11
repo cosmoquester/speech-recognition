@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from speech_recognition.utils import LRScheduler
+from speech_recognition.utils import LRScheduler, levenshtein_distance
 
 
 @pytest.mark.parametrize(
@@ -14,3 +14,21 @@ def test_learning_rate_scheduler(num_epoch, learning_rate, min_learning_rate, wa
     for i in range(num_epoch):
         learning_rate = fn(i)
     np.isclose(learning_rate, min_learning_rate, 1e-10, 0)
+
+
+@pytest.mark.parametrize(
+    "truth,hypothesis,distance,normalize",
+    [
+        ([], [], 0, False),
+        (list("abc"), [], 3, False),
+        ("hello", "hello", 0, False),
+        (list("kitten"), list("sitten"), 1, False),
+        ("sunday", "saturday", 3, False),
+        ([1, 2, 3], [4, 4, 4, 5], 4, False),
+        (list("안녕하세요"), list("안녕? 해..?"), 6, False),
+        ("hi", "hello", 2.0, True),
+        ("byebye", "yes", 2 / 3, True),
+    ],
+)
+def test_levenshtein_distance(truth, hypothesis, distance, normalize):
+    assert levenshtein_distance(truth, hypothesis, normalize) == distance
