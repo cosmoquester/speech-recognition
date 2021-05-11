@@ -19,7 +19,7 @@
 # Dataset Format
 
 - Dataset File is tsv(tab separated values) format.
-- The dataset file has to **header line**.
+- The dataset file should have **header line**.
 - The 1st column is **audio file path** relative to directory that contains dataset tsv file.
 - The 2nd column is **recognized text**.
 - Refer to `tests/data/dataset.tsv` file.
