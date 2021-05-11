@@ -97,6 +97,61 @@ $ python -m scripts.train \
 - `pretrained-model-path` is pretrained model checkpoint path if you continue to train from pretrained model.
 - `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)d
 
+# Evaluate
+
+## Example
+
+You can evaluate your trained model using `evaluate.py` script.
+You'll get to know CER or WER as a result of evaluation like below example.
+
+```sh
+$ python -m scripts.evaluate \
+  --data-config-path resources/configs/kspon_config.yml \
+  --model-config-path resources/configs/las_small.yml \
+  --dataset-paths asr_data/kspon/evaluate_sample.tsv \
+  --model-path model-30epoch-3.1351loss_0.4070acc.ckpt \
+  --sp-model-path resources/sp-models/sp_model_unigram_8K_kspon.model \
+  --device GPU
+...
+[2021-05-12 01:54:57,000] Loaded weights of model from model-30epoch-3.1351loss_0.4070acc.ckpt
+[2021-05-12 01:54:57,000] Start Inference
+2021-05-12 01:54:57.031146: I tensorflow/compiler/mlir/mlir_graph_optimization_pass.cc:116] None of the MLIR optimization passes are enabled (registered 2)
+2021-05-12 01:54:57.048736: I tensorflow/core/platform/profile_utils/cpu_utils.cc:112] CPU Frequency: 2198835000 Hz
+2021-05-12 01:55:05.850122: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcublas.so.11
+2021-05-12 01:55:06.198003: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcublasLt.so.11
+2021-05-12 01:55:06.200574: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudnn.so.8
+[2021-05-12 01:55:09,623] Ended Inference
+[2021-05-12 01:55:09,952] Average CER: 164.9703%
+```
+
+## Argument
+
+```sh
+  --data-config-path DATA_CONFIG_PATH
+                        data processing config file
+  --model-config-path MODEL_CONFIG_PATH
+                        model config file
+  --dataset-paths DATASET_PATHS
+                        a tsv/tfrecord dataset file or multiple files ex)
+                        *.tsv
+  --model-path MODEL_PATH
+                        pretrained model checkpoint
+  --sp-model-path SP_MODEL_PATH
+                        sentencepiece model path
+  --output-path OUTPUT_PATH
+                        output tsv file path to save generated sentences
+  --metric {CER,WER}    metric type
+  --batch-size BATCH_SIZE
+  --beam-size BEAM_SIZE
+                        not given, use greedy search else beam search with
+                        this value as beam size
+  --use-tfrecord        use tfrecord dataset
+  --mixed-precision     Use mixed precision FP16
+  --device DEVICE       device to train model
+```
+- `dataset-paths` is same as `dataset-paths` in train script.
+- If you pass `output-path` argument, recognized text and real target text, distance metric is exported in tsv format.
+- You can select your metric of CER or WER by passing `metric` argument.
 # Inference
 
 ## Example
