@@ -73,6 +73,30 @@ class LoggingCallback(tf.keras.callbacks.Callback):
         self.logs = {}
 
 
+def levenshtein_distance(
+    truth: Union[Iterable, str], hypothesis: Union[Iterable, str], normalize=True
+) -> Union[int, float]:
+    """Calculate levenshtein distance (edit distance)"""
+    m = len(truth) + 1
+    n = len(hypothesis) + 1
+
+    distance_matrix = np.zeros([m, n], np.int32)
+    distance_matrix[0] = np.arange(n)
+    distance_matrix[:, 0] = np.arange(m)
+
+    for i in range(1, m):
+        for j in range(1, n):
+            is_diff = int(truth[i - 1] != hypothesis[j - 1])
+            distance_matrix[i, j] = min(
+                distance_matrix[i - 1, j - 1] + is_diff, distance_matrix[i - 1, j] + 1, distance_matrix[i, j - 1] + 1
+            )
+
+    if normalize:
+        return distance_matrix[m - 1, n - 1] / len(truth)
+    else:
+        return distance_matrix[m - 1, n - 1]
+
+
 def get_logger(name: str) -> logging.Logger:
     """Return logger for logging"""
     logger = logging.getLogger(name)
