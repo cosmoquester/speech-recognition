@@ -98,12 +98,21 @@ if __name__ == "__main__":
             with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
                 tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-            logger.info(f"Load train dataset from {args.dev_dataset_paths}")
-            train_dataset = get_dataset(args.dev_dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
-                map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
-            )
+            logger.info(f"Load train dataset from {args.train_dataset_paths}")
+            train_dataset = get_dataset(
+                args.train_dataset_paths,
+                config.file_format,
+                config.sample_rate,
+                tokenizer,
+            ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
             logger.info(f"Load dev dataset from {args.dev_dataset_paths}")
-            dev_dataset = get_tfrecord_dataset(args.dev_dataset_paths)
+            dev_dataset = get_dataset(
+                args.dev_dataset_paths,
+                config.file_format,
+                config.sample_rate,
+                tokenizer,
+            ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # Apply max over policy
         filter_fn = tf.function(
