@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM, Conv1D, Dense, Embedding, Masking
+from tensorflow.keras.layers import LSTM, Conv1D, Dense, Embedding
 
 
 class AdditiveAttention(tf.keras.layers.Layer):
