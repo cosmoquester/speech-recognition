@@ -9,6 +9,7 @@ line_length = 120
 [tool.pyright]
 reportUnknownVariableType = false
 reportUnknownMemberType = false
+reportGeneralTypeIssues = false
 reportUnusedImport = true
 reportUnusedVariable = true
 reportUnusedClass = true
