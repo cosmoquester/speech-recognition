@@ -32,7 +32,7 @@ def test_get_dataset():
 
     assert len(data) == 2
     assert len(data[0]) == 2
-    tf.debugging.assert_equal(tf.shape(audio_sample), [66150, 1])
+    tf.debugging.assert_equal(tf.shape(audio_sample), [66150])
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
     tf.debugging.assert_equal(data[0][0], data[1][0], pcm_audio_sample, mp3_audio_sample)
 
@@ -73,7 +73,7 @@ def test_make_spectrogram(frame_length, frame_step, fft_length):
     if fft_length is None:
         fft_length = frame_length
     tf.debugging.assert_equal(
-        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, 1, fft_length // 2 + 1]
+        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, fft_length // 2 + 1]
     )
 
 
@@ -100,5 +100,5 @@ def test_make_log_mel_spectrogram(
     if fft_length is None:
         fft_length = frame_length
     tf.debugging.assert_equal(
-        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, 1, num_mel_bins]
+        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mel_bins]
     )
