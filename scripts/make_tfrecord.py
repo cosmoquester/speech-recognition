@@ -7,7 +7,7 @@ import tensorflow_text as text
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from speech_recognition.data import get_dataset, make_log_mel_spectrogram
+from speech_recognition.data import delta_accelerate, get_dataset, make_log_mel_spectrogram
 from speech_recognition.utils import get_logger
 
 # fmt: off
@@ -35,10 +35,9 @@ if __name__ == "__main__":
     with open(args.sp_model_path, "rb") as f:
         tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-    shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
     map_log_mel_spectrogram = tf.function(
         lambda audio, text: (
-            shape_squeeze(
+            delta_accelerate(
                 make_log_mel_spectrogram(
                     audio,
                     config.sample_rate,
