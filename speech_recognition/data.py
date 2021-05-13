@@ -74,7 +74,7 @@ def load_audio_file(
     :param sample_rate: sample rate of audio
     :param file_format: audio format, one of [flac, wav, pcm, mp3]
     :param resample: resample rate if it needs, else None
-    :return: loaded audio tensor
+    :return: loaded audio tensor shaped [TimeStep]
     """
     # audio: [TimeStep, NumChannel]
     if file_format in ["flac", "wav"]:
@@ -94,6 +94,9 @@ def load_audio_file(
     # Resample
     if resample is not None:
         audio = tfio.audio.resample(audio, sample_rate, resample, name="resampling")
+
+    # Reduce Channel
+    audio = tf.reduce_mean(audio, 1)
     return audio
 
 
@@ -102,20 +105,15 @@ def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_l
     """
     Make spectrogram from PCM audio dataset.
 
-    :param audio: pcm format audio tensor shaped [TimeStep, NumChannel]
+    :param audio: pcm format audio tensor shaped [TimeStep]
     :param frame_length: window length in samples
     :param frame_step: number of samples to step
     :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
-    :return: spectrogram audio tensor shaped [NumFrame, NumChannel, NumFFTUniqueBins]
+    :return: spectrogram audio tensor shaped [NumFrame, NumFFTUniqueBins]
     """
-    # Shape: [NumChannel, TimeStep]
-    audio = tf.transpose(audio)
-    # Shape: [NumChannel, NumFrame, NumFFTUniqueBins]
+    # Shape: [NumFrame, NumFFTUniqueBins]
     spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
     spectrogram = tf.abs(spectrogram)
-
-    # Shape: [NumFrame, NumChannel, NumFFTUniqueBins]
-    spectrogram = tf.transpose(spectrogram, [1, 0, 2])
     return spectrogram
 
 
@@ -134,7 +132,7 @@ def make_log_mel_spectrogram(
     """
     Make log mel spectrogram from PCM audio dataset.
 
-    :param audio: pcm format audio tensor shaped [TimeStep, NumChannel]
+    :param audio: pcm format audio tensor shaped [TimeStep]
     :param sample_rate: sampling rate of audio
     :param frame_length: window length in samples
     :param frame_step: number of samples to step
@@ -143,8 +141,9 @@ def make_log_mel_spectrogram(
     :param lower_edge_hertz: lower bound on the frequencies to be included in the mel spectrum
     :param upper_edge_hertz: desired top edge of the highest frequency band
     :param epsilon: added to mel spectrogram before log to prevent nan calculation
+    :return: log mel sectrogram of audio
     """
-    # Shape: [NumFrame, NumChannel, NumFFTUniqueBins]
+    # Shape: [NumFrame, NumFFTUniqueBins]
     spectrogram = make_spectrogram(audio, frame_length, frame_step, fft_length)
 
     num_spectrogram_bins = fft_length // 2 + 1
@@ -153,10 +152,27 @@ def make_log_mel_spectrogram(
         num_mel_bins, num_spectrogram_bins, sample_rate, lower_edge_hertz, upper_edge_hertz
     )
 
-    # Sahpe: [NumFrame, NumChannel, NumMelFilterbank]
+    # Sahpe: [NumFrame, NumMelFilterbank]
     mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
     log_mel_sepctrogram = tf.math.log(mel_spectrogram + epsilon)
     return log_mel_sepctrogram
+
+
+@tf.function
+def delta_accelerate(audio: tf.Tensor):
+    """
+    Append delta and deltas from audio feature.
+
+    :param: audio: audio data shaped [TimeStep, AudioDim]
+    :return: enhanced audio feature shaped [TimeStep, AudioDim, 3]
+    """
+    zero_head = tf.zeros_like(audio[:1])
+    delta = audio - tf.concat([zero_head, audio[:-1]], axis=0)
+    deltas = delta - tf.concat([zero_head, delta[:-1]], axis=0)
+
+    # [TimeStep, AudioDim, 3]
+    audio = tf.stack([audio, delta, deltas], axis=2)
+    return audio
 
 
 @tf.function
