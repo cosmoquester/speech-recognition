@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM, Conv1D, Dense, Embedding
+from tensorflow.keras.layers import LSTM, Conv2D, Dense, Embedding
 
 
 class AdditiveAttention(tf.keras.layers.Layer):
@@ -112,42 +112,44 @@ class Listener(tf.keras.layers.Layer):
             training mode or in inference mode. Only relevant when `dropout` or
             `recurrent_dropout` is used.
     Output Shape:
-        audio: `[BatchSize, CEIL(TimeStep // 4), HiddenDim]`
+        audio: `[BatchSize, ReducedTimeStep, HiddenDim]`
     """
 
     def __init__(self, hidden_dim: int, num_encoder_layers: int, pad_id: float, **kwargs):
         super(Listener, self).__init__(**kwargs)
 
-        self.filter_size = 3
+        self.filter_sizes = (3, 3)
         self.strides = 2
         self.pad_id = tf.constant(pad_id, tf.float32)
 
-        self.conv1 = Conv1D(32, self.filter_size, strides=self.strides, name="conv1")
-        self.conv2 = Conv1D(32, self.filter_size, strides=self.strides, name="conv2")
+        self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
+        self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
         self.encoder_layers = [BiLSTM(hidden_dim, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
 
     def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
-        # [BatchSize, CEIL(TimeStep // 4)]
+        # [BatchSize, ReducedTimeStep]
         mask = self._audio_mask(audio)
+        batch_size = tf.shape(audio)[0]
 
-        # [BatchSize, CEIL(TimeStep // 4), 32]
+        # [BatchSize, ReducedTimeStep, ReducedFrequencyDim, 32]
         audio = self.conv2(self.conv1(audio))
+        audio = tf.reshape(audio, [batch_size, -1, audio.shape[2] * audio.shape[3]])
 
         # Encode
-        # audio: [BatchSize, CEIL(TimeStep // 4), HiddenDim]
+        # audio: [BatchSize, ReducedTimeStep, HiddenDim]
         states = None
         for encoder_layer in self.encoder_layers:
             audio, *states = encoder_layer(audio, mask, states)
-
         return [audio] + states
 
-    @tf.function(input_signature=[tf.TensorSpec([None, None, None])])
+    @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
     def _audio_mask(self, audio):
-        mask = tf.reduce_any(audio != self.pad_id, axis=2)
-        batch_size, sequence_length = tf.unstack(tf.shape(mask), 2)
-        sequence_length -= self.filter_size - self.strides
+        filter_size = self.filter_sizes[0]
+        batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
+        mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.pad_id, axis=2)
+        sequence_length -= filter_size - self.strides
         sequence_length = sequence_length // self.strides
-        sequence_length -= self.filter_size - self.strides
+        sequence_length -= filter_size - self.strides
         sequence_length = sequence_length // self.strides
         sequence_length *= self.strides ** 2
 
@@ -200,11 +202,13 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         # Decode
         # decoder_input: [BatchSize, NumTokens, HiddenDim]
         states = tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)
-        decoder_input, *states = self.decoder_layers[0](decoder_input, states, mask=mask)
+        decoder_input, *states = self.decoder_layers[0](decoder_input, initial_state=states, mask=mask)
         mask = tf.concat([mask[:, :1], mask], axis=1)
         for decoder_layer in self.decoder_layers[1:]:
             context = self.attention(states[0], audio_output, audio_output)
-            decoder_input, *states = decoder_layer(tf.concat([context, decoder_input], axis=1), states, mask=mask)
+            decoder_input, *states = decoder_layer(
+                tf.concat([context, decoder_input], axis=1), initial_state=states, mask=mask
+            )
             decoder_input = decoder_input[:, 1:, :]
 
         # [BatchSize, VocabSize]
