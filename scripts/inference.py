@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_text as text
 from omegaconf import OmegaConf
 
-from speech_recognition.data import load_audio_file, make_log_mel_spectrogram
+from speech_recognition.data import delta_accelerate, load_audio_file, make_log_mel_spectrogram
 from speech_recognition.model import LAS
 from speech_recognition.search import Searcher
 from speech_recognition.utils import get_device_strategy, get_logger
@@ -53,7 +53,6 @@ if __name__ == "__main__":
         config = OmegaConf.load(f)
 
     with strategy.scope():
-        shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
         dataset = (
             tf.data.Dataset.from_tensor_slices(dataset_files)
             .map(
@@ -77,8 +76,8 @@ if __name__ == "__main__":
                 ),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE,
             )
-            .map(shape_squeeze)
-            .padded_batch(args.batch_size, [None, config.num_mel_bins])
+            .map(delta_accelerate)
+            .padded_batch(args.batch_size, [None, config.num_mel_bins, 3])
             .prefetch(tf.data.experimental.AUTOTUNE)
         )
 
@@ -94,7 +93,7 @@ if __name__ == "__main__":
             )
             model(
                 (
-                    tf.keras.Input([None, config.num_mel_bins], dtype=tf.float32),
+                    tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
                     tf.keras.Input([None], dtype=tf.int32),
                 )
             )

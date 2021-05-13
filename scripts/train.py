@@ -5,7 +5,13 @@ import tensorflow as tf
 import tensorflow_text as text
 from omegaconf import OmegaConf
 
-from speech_recognition.data import get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram, make_train_examples
+from speech_recognition.data import (
+    delta_accelerate,
+    get_dataset,
+    get_tfrecord_dataset,
+    make_log_mel_spectrogram,
+    make_train_examples,
+)
 from speech_recognition.model import LAS
 from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
@@ -69,10 +75,9 @@ if __name__ == "__main__":
             config = OmegaConf.load(f)
 
         # Construct Dataset
-        shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
         map_log_mel_spectrogram = tf.function(
             lambda audio, text: (
-                shape_squeeze(
+                delta_accelerate(
                     make_log_mel_spectrogram(
                         audio,
                         config.sample_rate,
@@ -150,10 +155,10 @@ if __name__ == "__main__":
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length
         train_dataset = train_dataset.padded_batch(
-            args.batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
+            args.batch_size, (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), ())
         ).prefetch(tf.data.experimental.AUTOTUNE)
         dev_dataset = dev_dataset.padded_batch(
-            args.dev_batch_size, (([audio_pad_length, config.num_mel_bins], [token_pad_length]), ())
+            args.dev_batch_size, (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), ())
         )
 
         if args.steps_per_epoch:
@@ -172,7 +177,7 @@ if __name__ == "__main__":
             )
             model(
                 (
-                    tf.keras.Input([None, config.num_mel_bins], dtype=tf.float32),
+                    tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
                     tf.keras.Input([None], dtype=tf.int32),
                 )
             )

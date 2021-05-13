@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow_text as text
 from omegaconf import OmegaConf
 
-from speech_recognition.data import get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
+from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
 from speech_recognition.model import LAS
 from speech_recognition.search import Searcher
 from speech_recognition.utils import get_device_strategy, get_logger, levenshtein_distance
@@ -50,10 +50,9 @@ if __name__ == "__main__":
 
     with strategy.scope():
         # Construct Dataset
-        shape_squeeze = lambda x: tf.reshape(x, [tf.shape(x)[0], -1])
         map_log_mel_spectrogram = tf.function(
             lambda audio, text: (
-                shape_squeeze(
+                delta_accelerate(
                     make_log_mel_spectrogram(
                         audio,
                         config.sample_rate,
@@ -91,7 +90,7 @@ if __name__ == "__main__":
             )
             model(
                 (
-                    tf.keras.Input([None, config.num_mel_bins], dtype=tf.float32),
+                    tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
                     tf.keras.Input([None], dtype=tf.int32),
                 )
             )
