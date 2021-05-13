@@ -7,7 +7,7 @@ import tensorflow_text as text
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from speech_recognition.data import delta_accelerate, get_dataset, make_log_mel_spectrogram
+from speech_recognition.data import get_dataset, make_log_mel_spectrogram
 from speech_recognition.utils import get_logger
 
 # fmt: off
@@ -37,17 +37,15 @@ if __name__ == "__main__":
 
     map_log_mel_spectrogram = tf.function(
         lambda audio, text: (
-            delta_accelerate(
-                make_log_mel_spectrogram(
-                    audio,
-                    config.sample_rate,
-                    config.frame_length,
-                    config.frame_step,
-                    config.fft_length,
-                    config.num_mel_bins,
-                    config.lower_edge_hertz,
-                    config.upper_edge_hertz,
-                )
+            make_log_mel_spectrogram(
+                audio,
+                config.sample_rate,
+                config.frame_length,
+                config.frame_step,
+                config.fft_length,
+                config.num_mel_bins,
+                config.lower_edge_hertz,
+                config.upper_edge_hertz,
             ),
             text,
         )
