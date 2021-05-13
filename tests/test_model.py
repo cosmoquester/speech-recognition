@@ -32,7 +32,7 @@ def test_las(
     num_tokens,
 ):
     las = LAS(vocab_size, hidden_dim, num_encoder_layers, num_decoder_layers)
-    audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim])
+    audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim, 3])
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
 
     output = las((audio, tokens))

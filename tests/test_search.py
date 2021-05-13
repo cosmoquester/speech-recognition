@@ -19,14 +19,16 @@ def test_search():
     bos_id = 2
     eos_id = 3
     max_sequence_length = 17
-    output = model(
+    model(
         (
-            tf.random.uniform((batch_size, encoder_sequence, encoder_input_dim), maxval=100, dtype=tf.float32),
-            tf.random.uniform((batch_size, decoder_sequence), maxval=100, dtype=tf.int32),
+            tf.keras.Input([None, encoder_input_dim, 3], dtype=tf.float32),
+            tf.keras.Input([None], dtype=tf.int32),
         )
     )
 
-    encoder_input = tf.random.uniform((batch_size, encoder_sequence, encoder_input_dim), maxval=100, dtype=tf.float32)
+    encoder_input = tf.random.uniform(
+        (batch_size, encoder_sequence, encoder_input_dim, 3), maxval=100, dtype=tf.float32
+    )
     decoder_sequence = tf.random.uniform((batch_size, decoder_sequence), maxval=100, dtype=tf.int32)
 
     searcher = Searcher(model, max_sequence_length, bos_id, eos_id)
