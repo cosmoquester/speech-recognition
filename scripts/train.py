@@ -77,17 +77,15 @@ if __name__ == "__main__":
         # Construct Dataset
         map_log_mel_spectrogram = tf.function(
             lambda audio, text: (
-                delta_accelerate(
-                    make_log_mel_spectrogram(
-                        audio,
-                        config.sample_rate,
-                        config.frame_length,
-                        config.frame_step,
-                        config.fft_length,
-                        config.num_mel_bins,
-                        config.lower_edge_hertz,
-                        config.upper_edge_hertz,
-                    )
+                make_log_mel_spectrogram(
+                    audio,
+                    config.sample_rate,
+                    config.frame_length,
+                    config.frame_step,
+                    config.fft_length,
+                    config.num_mel_bins,
+                    config.lower_edge_hertz,
+                    config.upper_edge_hertz,
                 ),
                 text,
             )
@@ -118,6 +116,11 @@ if __name__ == "__main__":
                 config.sample_rate,
                 tokenizer,
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        # Delta Accelerate
+        delta_accelerate_fn = tf.function(lambda audio, text: (delta_accelerate(audio), text))
+        train_dataset = train_dataset.map(delta_accelerate_fn)
+        dev_dataset = dev_dataset.map(delta_accelerate_fn)
 
         # Apply max over policy
         filter_fn = tf.function(
