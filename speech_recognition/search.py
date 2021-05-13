@@ -20,12 +20,12 @@ class Searcher:
         self.eos_id = eos_id
         self.pad_id = pad_id
 
-    @tf.function(input_signature=[tf.TensorSpec([None, None, None], tf.float32)])
+    @tf.function
     def greedy_search(self, audio_input: tf.Tensor) -> tf.Tensor:
         """
         Generate sentences using decoder by greedy searching.
 
-        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio].
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, 3].
         :return: generated tensor shaped. and ppl value of each generated sentences
         """
         batch_size = tf.shape(audio_input)[0]
@@ -76,14 +76,7 @@ class Searcher:
         )
         return decoder_input, perplexity
 
-    @tf.function(
-        input_signature=[
-            tf.TensorSpec([None, None, None], tf.float32),
-            tf.TensorSpec([], tf.int32),
-            tf.TensorSpec([], tf.float64),
-            tf.TensorSpec([], tf.int32),
-        ]
-    )
+    @tf.function
     def beam_search(
         self,
         audio_input: tf.Tensor,
@@ -94,7 +87,7 @@ class Searcher:
         """
         Generate sentences using decoder by beam searching.
 
-        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio].
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, 3].
         :param beam_size: beam size for beam search.
         :param alpha: length penalty control variable
         :param beta: length penalty control variable, meaning minimum length.
