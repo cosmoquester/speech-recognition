@@ -133,7 +133,8 @@ class Listener(tf.keras.layers.Layer):
 
         # [BatchSize, ReducedTimeStep, ReducedFrequencyDim, 32]
         audio = self.conv2(self.conv1(audio))
-        audio = tf.reshape(audio, [batch_size, -1, audio.shape[2] * audio.shape[3]])
+        sequence_length = -1 if audio.shape[1] is None else audio.shape[1]
+        audio = tf.reshape(audio, [batch_size, sequence_length, audio.shape[2] * audio.shape[3]])
 
         # Encode
         # audio: [BatchSize, ReducedTimeStep, HiddenDim]

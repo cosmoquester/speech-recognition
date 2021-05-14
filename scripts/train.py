@@ -180,8 +180,8 @@ if __name__ == "__main__":
             )
             model(
                 (
-                    tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
-                    tf.keras.Input([None], dtype=tf.int32),
+                    tf.keras.Input([audio_pad_length, config.num_mel_bins, 3], dtype=tf.float32),
+                    tf.keras.Input([token_pad_length], dtype=tf.int32),
                 )
             )
             model.summary()
