@@ -28,7 +28,7 @@ parser.add_argument("--output-path", default="output", help="output directory to
 parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--steps-per-epoch", type=int, default=None)
-parser.add_argument("--learning-rate", type=float, default=2e-4)
+parser.add_argument("--learning-rate", type=float, default=1e-3)
 parser.add_argument("--min-learning-rate", type=float, default=1e-5)
 parser.add_argument("--warmup-rate", type=float, default=0.00)
 parser.add_argument("--warmup-steps", type=int)
