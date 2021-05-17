@@ -12,9 +12,10 @@ def test_additive_attention(hidden_dim, sequence_length, batch_size):
     query = tf.random.normal([batch_size, hidden_dim])
     key = tf.random.normal([batch_size, sequence_length, hidden_dim])
     value = tf.random.normal([batch_size, sequence_length, hidden_dim])
+    mask = tf.random.normal([batch_size, sequence_length]) > 0.5
 
-    output = attention(query, key, value)
-    tf.debugging.assert_equal(tf.shape(output), [batch_size, 1, hidden_dim])
+    output = tf.squeeze(attention(query, key, value, mask), axis=1)
+    tf.debugging.assert_equal(tf.shape(output), [batch_size, hidden_dim])
 
 
 @pytest.mark.parametrize(
@@ -31,7 +32,7 @@ def test_las(
     audio_sequence_length,
     num_tokens,
 ):
-    las = LAS(vocab_size, hidden_dim, num_encoder_layers, num_decoder_layers)
+    las = LAS(vocab_size, hidden_dim, num_encoder_layers, num_decoder_layers, 0.1)
     audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim, 3])
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
 

@@ -39,7 +39,7 @@ class Searcher:
 
         def _body(decoder_input, is_ended, log_perplexity, sequence_lengths):
             # [BatchSize, VocabSize]
-            output = self.model.attend_and_speller(audio_output, decoder_input, states)
+            output = self.model.attend_and_speller(audio_output, decoder_input, mask, states)
             output = tf.nn.log_softmax(output, axis=1)
 
             # [BatchSize, 1]
@@ -56,7 +56,7 @@ class Searcher:
             return decoder_input, is_ended, log_perplexity, sequence_lengths
 
         # Encoding
-        audio_output, *states = self.model.listener(audio_input)
+        audio_output, mask, *states = self.model.listener(audio_input)
 
         # Decoding
         decoder_input, is_ended, log_perplexity, sequence_lengths = tf.while_loop(
@@ -114,14 +114,14 @@ class Searcher:
         def has_eos(decoder_input):
             return tf.reduce_any(decoder_input == self.eos_id, axis=-1)
 
-        def _cond(audio_output, decoder_input, log_perplexity, states):
+        def _cond(audio_output, decoder_input, mask, log_perplexity, states):
             return tf.shape(decoder_input)[1] < self.max_token_length and tf.reduce_any(
                 tf.logical_not(has_eos(decoder_input))
             )
 
-        def _body(audio_output, decoder_input, log_perplexity, states):
+        def _body(audio_output, decoder_input, mask, log_perplexity, states):
             # [BatchSize, VocabSize]
-            output = self.model.attend_and_speller(audio_output, decoder_input, states)
+            output = self.model.attend_and_speller(audio_output, decoder_input, mask, states)
             output = tf.nn.log_softmax(output, axis=1)
 
             # [BatchSize, BeamSize] at first, [BatchSize * BeamSize, BeamSize] after second loops
@@ -137,6 +137,7 @@ class Searcher:
             # Generate first token
             if tf.shape(decoder_input)[1] == 1:
                 audio_output = tf.repeat(audio_output, beam_size, axis=0)
+                mask = tf.repeat(mask, beam_size, axis=0)
                 new_states = []
                 for state in states:
                     new_states += [tf.repeat(state, beam_size, axis=0)]
@@ -145,7 +146,7 @@ class Searcher:
                 # [BatchSize * BeamSize, 2]
                 decoder_input = tf.concat([tf.fill([batch_size * beam_size, 1], self.bos_id), new_tokens], axis=1)
                 log_perplexity = tf.cast(log_probs, log_perplexity.dtype)
-                return audio_output, decoder_input, log_perplexity, states
+                return audio_output, decoder_input, mask, log_perplexity, states
             else:
                 # [BatchSize * BeamSize, BeamSize, DecoderSequenceLength + 1]
                 decoder_input = tf.reshape(
@@ -172,19 +173,20 @@ class Searcher:
             log_perplexity = tf.cast(tf.gather_nd(log_probs, indices_for_decoder_input), log_perplexity.dtype)
             log_perplexity = tf.reshape(log_perplexity, [batch_size, beam_size])
 
-            return audio_output, decoder_input, log_perplexity, states
+            return audio_output, decoder_input, mask, log_perplexity, states
 
         # Encoding
-        audio_output, *states = self.model.listener(audio_input)
+        audio_output, mask, *states = self.model.listener(audio_input)
 
         # Decoding
-        audio_output, decoder_input, log_perplexity, states = tf.while_loop(
+        audio_output, decoder_input, mask, log_perplexity, states = tf.while_loop(
             _cond,
             _body,
-            [audio_output, decoder_input, log_perplexity, states],
+            [audio_output, decoder_input, mask, log_perplexity, states],
             shape_invariants=[
                 tf.TensorSpec([None, None, None], tf.float32),
                 tf.TensorSpec([None, None], tf.int32),
+                tf.TensorSpec([None, None], tf.bool),
                 tf.TensorSpec([None, None]),
                 [
                     tf.TensorSpec([None, None]),

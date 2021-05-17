@@ -10,6 +10,7 @@ def test_search():
         hidden_dim=32,
         num_encoder_layers=1,
         num_decoder_layers=1,
+        dropout=0.1,
     )
 
     batch_size = 8
