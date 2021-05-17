@@ -16,7 +16,7 @@ class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
         total_steps: int,
         max_learning_rate: float,
         min_learning_rate: float,
-        warmup_rate: Optional[float] = None,
+        warmup_rate: float = 0.0,
         warmup_steps: Optional[int] = None,
     ):
         self.warmup_steps = int(total_steps * warmup_rate) + 1 if warmup_steps is None else warmup_steps
@@ -27,8 +27,8 @@ class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
 
     def __call__(self, step: Union[int, tf.Tensor]) -> tf.Tensor:
         step = tf.cast(step, tf.float32)
-        lr = tf.reduce_min([step * self.increasing_delta, self.max_learning_rate - step * self.decreasing_delta])
-        return tf.reduce_max([lr, self.min_learning_rate])
+        lr = tf.minimum(step * self.increasing_delta, self.max_learning_rate - step * self.decreasing_delta)
+        return tf.maximum(lr, self.min_learning_rate)
 
 
 class LoggingCallback(tf.keras.callbacks.Callback):

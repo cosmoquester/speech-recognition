@@ -6,5 +6,7 @@ hidden_dim: 1024
 num_encoder_layers: 4
 # Decoder Layers
 num_decoder_layers: 2
+# Dropout Rate
+dropout: 0.15
 # Pad Token ID
 pad_id: 0
