@@ -1,7 +1,7 @@
 # Vocab Size
 vocab_size: 16000
 # Hidden Dimension
-hidden_dim: 256
+hidden_dim: 512
 # Encoder Layers
 num_encoder_layers: 3
 # Decoder Layers
