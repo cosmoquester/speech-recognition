@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM, Conv2D, Dense, Dropout, Embedding
+from tensorflow.keras.layers import LSTM, BatchNormalization, Conv2D, Dense, Dropout, Embedding
 
 
 class AdditiveAttention(tf.keras.layers.Layer):
@@ -131,6 +131,8 @@ class Listener(tf.keras.layers.Layer):
         self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
         self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
         self.encoder_layers = [BiLSTM(hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
+        self.projection = [Dense(hidden_dim * 2, name=f"proejction{i}") for i in range(num_encoder_layers)]
+        self.batch_norm = [BatchNormalization(name=f"batch_normalization{i}") for i in range(num_encoder_layers)]
         self.dropout = Dropout(dropout, name="dropout")
 
     def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
@@ -147,8 +149,10 @@ class Listener(tf.keras.layers.Layer):
         # Encode
         # audio: [BatchSize, ReducedTimeStep, HiddenDim]
         states = None
-        for encoder_layer in self.encoder_layers:
+        for encoder_layer, projection, batch_norm in zip(self.encoder_layers, self.projection, self.batch_norm):
             audio, *states = encoder_layer(audio, mask, states)
+            audio = tf.nn.relu(batch_norm(projection(audio)))
+
         return [audio, mask] + states
 
     @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
