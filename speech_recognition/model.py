@@ -153,6 +153,8 @@ class Listener(tf.keras.layers.Layer):
             audio, *states = encoder_layer(audio, mask, states)
             audio = tf.nn.relu(batch_norm(projection(audio)))
 
+        # Concat states of two directions
+        states = [tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)]
         return [audio, mask] + states
 
     @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
@@ -284,7 +286,6 @@ class LAS(tf.keras.Model):
         token_length = decoder_input.shape[1] or tf.shape(decoder_input)[1]
 
         audio_output, attention_mask, *states = self.listener(audio_input)
-        states = [tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)]
         outputs = tf.TensorArray(
             tf.float32, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
         )

@@ -34,12 +34,12 @@ class Searcher:
         sequence_lengths = tf.fill([batch_size, 1], self.max_token_length)
         is_ended = tf.zeros([batch_size, 1], tf.bool)
 
-        def _cond(decoder_input, is_ended, log_perplexity, sequence_lengths):
+        def _cond(decoder_input, is_ended, log_perplexity, sequence_lengths, states):
             return tf.shape(decoder_input)[1] < self.max_token_length and not tf.reduce_all(is_ended)
 
-        def _body(decoder_input, is_ended, log_perplexity, sequence_lengths):
+        def _body(decoder_input, is_ended, log_perplexity, sequence_lengths, states):
             # [BatchSize, VocabSize]
-            output = self.model.attend_and_speller(audio_output, decoder_input, mask, states)
+            output, *states = self.model.attend_and_speller(audio_output, decoder_input[:, -1], mask, states)
             output = tf.nn.log_softmax(output, axis=1)
 
             # [BatchSize, 1]
@@ -53,21 +53,25 @@ class Searcher:
             # [BatchSize, DecoderSequenceLength + 1]
             decoder_input = tf.concat((decoder_input, new_tokens), axis=1)
 
-            return decoder_input, is_ended, log_perplexity, sequence_lengths
+            return decoder_input, is_ended, log_perplexity, sequence_lengths, states
 
         # Encoding
         audio_output, mask, *states = self.model.listener(audio_input)
 
         # Decoding
-        decoder_input, is_ended, log_perplexity, sequence_lengths = tf.while_loop(
+        decoder_input, is_ended, log_perplexity, sequence_lengths, states = tf.while_loop(
             _cond,
             _body,
-            [decoder_input, is_ended, log_perplexity, sequence_lengths],
+            [decoder_input, is_ended, log_perplexity, sequence_lengths, states],
             shape_invariants=[
                 tf.TensorSpec([None, None], tf.int32),
                 tf.TensorSpec(is_ended.get_shape(), is_ended.dtype),
                 tf.TensorSpec(log_perplexity.get_shape(), log_perplexity.dtype),
                 tf.TensorSpec(sequence_lengths.get_shape(), sequence_lengths.dtype),
+                [
+                    tf.TensorSpec([None, None]),
+                    tf.TensorSpec([None, None]),
+                ],
             ],
         )
 
@@ -121,7 +125,7 @@ class Searcher:
 
         def _body(audio_output, decoder_input, mask, log_perplexity, states):
             # [BatchSize, VocabSize]
-            output = self.model.attend_and_speller(audio_output, decoder_input, mask, states)
+            output, *states = self.model.attend_and_speller(audio_output, decoder_input[:, -1], mask, states)
             output = tf.nn.log_softmax(output, axis=1)
 
             # [BatchSize, BeamSize] at first, [BatchSize * BeamSize, BeamSize] after second loops
@@ -189,8 +193,6 @@ class Searcher:
                 tf.TensorSpec([None, None], tf.bool),
                 tf.TensorSpec([None, None]),
                 [
-                    tf.TensorSpec([None, None]),
-                    tf.TensorSpec([None, None]),
                     tf.TensorSpec([None, None]),
                     tf.TensorSpec([None, None]),
                 ],
