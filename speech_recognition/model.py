@@ -41,8 +41,8 @@ class AdditiveAttention(tf.keras.layers.Layer):
         weight -= 1e9 * (1.0 - tf.cast(tf.expand_dims(attention_mask, axis=1), tf.float32))
         attention_probs = tf.nn.softmax(weight, axis=-1)
 
-        # [BatchSize, 1, HiddenDim]
-        context = tf.matmul(attention_probs, value)
+        # [BatchSize, HiddenDim]
+        context = tf.squeeze(tf.matmul(attention_probs, value), axis=1)
         return context
 
 
@@ -201,7 +201,7 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         self.pad_id = pad_id
         self.embedding = Embedding(vocab_size, hidden_dim)
         self.decoder_layers = [
-            LSTM(hidden_dim, dropout=dropout, return_state=True, return_sequences=True, name=f"decoder_layer{i}")
+            LSTM(hidden_dim, dropout=dropout, return_state=True, name=f"decoder_layer{i}")
             for i in range(num_decoder_layers)
         ]
         self.attention = AdditiveAttention(hidden_dim, name="attention")
@@ -216,33 +216,24 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         states: List,
         training: Optional[bool] = None,
     ) -> tf.Tensor:
-        # [BatchSize, NumTokens]
-        mask = decoder_input != self.pad_id
-        # [BatchSize, NumTokens, HiddenDim]
+        # [BatchSize, 1]
+        mask = tf.expand_dims(decoder_input != self.pad_id, axis=1)
+        # [BatchSize, HiddenDim]
         decoder_input = self.dropout(self.embedding(decoder_input))
 
         # Decode
-        # decoder_input: [BatchSize, NumTokens, HiddenDim]
-        states = tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)
-        decoder_input, *states = self.decoder_layers[0](decoder_input, initial_state=states, mask=mask)
-        mask = tf.concat([mask[:, :1], mask], axis=1)
-        for decoder_layer in self.decoder_layers[1:]:
-            context = self.attention(states[0], audio_output, audio_output, attention_mask)
-            decoder_input, *states = decoder_layer(
-                tf.concat([context, decoder_input], axis=1), initial_state=states, mask=mask
-            )
-            decoder_input = decoder_input[:, 1:, :]
+        # decoder_input: [BatchSize, HiddenDim]
+        context = self.attention(states[0], audio_output, audio_output, attention_mask)
+        decoder_input = tf.concat([decoder_input, context], axis=-1)
 
-        # Get last output manually because of issue https://github.com/tensorflow/tensorflow/issues/49241
-        token_length = decoder_input.shape[1] or tf.shape(decoder_input)[1]
-        last_sequence_index = tf.math.count_nonzero(mask[:, 1:], axis=1) - 1
-        last_sequence_output = tf.reduce_sum(
-            decoder_input * tf.one_hot(last_sequence_index, token_length)[:, :, tf.newaxis], axis=1
-        )
+        for decoder_layer in self.decoder_layers:
+            decoder_input, *states = decoder_layer(
+                tf.expand_dims(decoder_input, axis=1), initial_state=states, mask=mask
+            )
 
         # [BatchSize, VocabSize]
-        output = self.feedforward(self.dropout(last_sequence_output))
-        return output
+        output = self.feedforward(self.dropout(decoder_input))
+        return [output] + states
 
 
 class LAS(tf.keras.Model):
@@ -280,6 +271,8 @@ class LAS(tf.keras.Model):
     ):
         super(LAS, self).__init__(**kwargs)
 
+        self.vocab_size = vocab_size
+        self.hidden_dim = hidden_dim
         self.listener = Listener(hidden_dim // 2, num_encoder_layers, dropout, pad_id, name="listener")
         self.attend_and_speller = AttendAndSpeller(
             vocab_size, hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
@@ -288,7 +281,19 @@ class LAS(tf.keras.Model):
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
         # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
         audio_input, decoder_input = inputs
+        token_length = decoder_input.shape[1] or tf.shape(decoder_input)[1]
 
         audio_output, attention_mask, *states = self.listener(audio_input)
-        output = self.attend_and_speller(audio_output, decoder_input, attention_mask, states)
-        return output
+        states = [tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)]
+        outputs = tf.TensorArray(
+            tf.float32, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
+        )
+
+        for i in tf.range(token_length):
+            output, *states = self.attend_and_speller(
+                audio_output, tf.gather(decoder_input, i, axis=1), attention_mask, states
+            )
+            outputs = outputs.write(i, output)
+
+        result = tf.transpose(outputs.stack(), [1, 0, 2])
+        return result
