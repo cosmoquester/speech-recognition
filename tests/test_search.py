@@ -7,7 +7,8 @@ from speech_recognition.search import Searcher
 def test_search():
     model = LAS(
         vocab_size=100,
-        hidden_dim=32,
+        encoder_hidden_dim=32,
+        decoder_hidden_dim=32,
         num_encoder_layers=1,
         num_decoder_layers=1,
         dropout=0.1,

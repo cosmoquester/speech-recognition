@@ -108,7 +108,8 @@ class Listener(tf.keras.layers.Layer):
     Listener of LAS model.
 
     Arguments:
-        hidden_dim: Integer, the hidden dimension size of SampleModel.
+        encoder_hidden_dim: Integer, the hidden dimension size of SampleModel encoder.
+        decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
         num_encoder_layers: Integer, the number of seq2seq encoder.
         dropout: Float,
         pad_id: Float, pad id for audio padding
@@ -121,7 +122,15 @@ class Listener(tf.keras.layers.Layer):
         audio: `[BatchSize, ReducedTimeStep, HiddenDim]`
     """
 
-    def __init__(self, hidden_dim: int, num_encoder_layers: int, dropout: float, pad_id: float, **kwargs):
+    def __init__(
+        self,
+        encoder_hidden_dim: int,
+        decoder_hidden_dim: int,
+        num_encoder_layers: int,
+        dropout: float,
+        pad_id: float,
+        **kwargs,
+    ):
         super(Listener, self).__init__(**kwargs)
 
         self.filter_sizes = (3, 3)
@@ -130,9 +139,13 @@ class Listener(tf.keras.layers.Layer):
 
         self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
         self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
-        self.encoder_layers = [BiLSTM(hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)]
-        self.projection = [Dense(hidden_dim * 2, name=f"proejction{i}") for i in range(num_encoder_layers)]
+        self.encoder_layers = [
+            BiLSTM(encoder_hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)
+        ]
+        self.projection = [Dense(encoder_hidden_dim * 2, name=f"proejction{i}") for i in range(num_encoder_layers)]
         self.batch_norm = [BatchNormalization(name=f"batch_normalization{i}") for i in range(num_encoder_layers)]
+        self.hidden_states_proj = Dense(decoder_hidden_dim, name="hidden_state_proj")
+        self.cell_states_proj = Dense(decoder_hidden_dim, name="cell_state_proj")
         self.dropout = Dropout(dropout, name="dropout")
 
     def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
@@ -154,7 +167,10 @@ class Listener(tf.keras.layers.Layer):
             audio = tf.nn.relu(batch_norm(projection(audio)))
 
         # Concat states of two directions
-        states = [tf.concat(states[::2], axis=-1), tf.concat(states[1::2], axis=-1)]
+        states = [
+            self.hidden_states_proj(tf.concat(states[::2], axis=-1)),
+            self.cell_states_proj(tf.concat(states[1::2], axis=-1)),
+        ]
         return [audio, mask] + states
 
     @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
@@ -244,7 +260,8 @@ class LAS(tf.keras.Model):
 
     Arguments:
         vocab_size: Integer, the size of vocabulary.
-        hidden_dim: Integer, the hidden dimension size of SampleModel.
+        encoder_hidden_dim: Integer, the hidden dimension size of SampleModel encoder.
+        decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
         num_encoder_layers: Integer, the number of seq2seq encoder.
         num_decoder_layers: Integer, the number of seq2seq decoder.
         pad_id: Integer, the id of padding token.
@@ -264,7 +281,8 @@ class LAS(tf.keras.Model):
     def __init__(
         self,
         vocab_size: int,
-        hidden_dim: int,
+        encoder_hidden_dim: int,
+        decoder_hidden_dim: int,
         num_encoder_layers: int,
         num_decoder_layers: int,
         dropout: float,
@@ -274,10 +292,11 @@ class LAS(tf.keras.Model):
         super(LAS, self).__init__(**kwargs)
 
         self.vocab_size = vocab_size
-        self.hidden_dim = hidden_dim
-        self.listener = Listener(hidden_dim // 2, num_encoder_layers, dropout, pad_id, name="listener")
+        self.listener = Listener(
+            encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, pad_id, name="listener"
+        )
         self.attend_and_speller = AttendAndSpeller(
-            vocab_size, hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
+            vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
