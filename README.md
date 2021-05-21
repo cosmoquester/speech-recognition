@@ -95,7 +95,7 @@ $ python -m scripts.train \
 - `model-config-path` is config model file path for model initialize. default config is `resources/configs/las_small.yml`.
 - `sp-model-path` is sentencepiece model path to tokenize target text.
 - `pretrained-model-path` is pretrained model checkpoint path if you continue to train from pretrained model.
-- `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)d
+- `disable-mixed-precision` option is disabling mixed precision. (default use mixed precision)
 
 # Evaluate
 
