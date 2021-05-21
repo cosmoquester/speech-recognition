@@ -14,7 +14,7 @@ def test_additive_attention(hidden_dim, sequence_length, batch_size):
     value = tf.random.normal([batch_size, sequence_length, hidden_dim])
     mask = tf.random.normal([batch_size, sequence_length]) > 0.5
 
-    output = tf.squeeze(attention(query, key, value, mask), axis=1)
+    output = attention(query, key, value, mask)
     tf.debugging.assert_equal(tf.shape(output), [batch_size, hidden_dim])
 
 
@@ -37,4 +37,4 @@ def test_las(
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
 
     output = las((audio, tokens))
-    tf.debugging.assert_equal(tf.shape(output), [batch_size, vocab_size])
+    tf.debugging.assert_equal(tf.shape(output), [batch_size, num_tokens, vocab_size])
