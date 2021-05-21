@@ -176,7 +176,8 @@ if __name__ == "__main__":
             model_config = OmegaConf.load(f)
             model = LAS(
                 model_config.vocab_size,
-                model_config.hidden_dim,
+                model_config.encoder_hidden_dim,
+                model_config.decoder_hidden_dim,
                 model_config.num_encoder_layers,
                 model_config.num_decoder_layers,
                 model_config.pad_id,
