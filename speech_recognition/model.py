@@ -283,14 +283,21 @@ class LAS(tf.keras.Model):
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
         # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
         audio_input, decoder_input = inputs
-        token_length = decoder_input.shape[1] or tf.shape(decoder_input)[1]
+
+        # Use range on TPU because of issue https://github.com/tensorflow/tensorflow/issues/49469
+        if decoder_input.shape[1]:
+            token_length = decoder_input.shape[1]
+            index_iter = range(token_length)
+        else:
+            token_length = tf.shape(decoder_input)[1]
+            index_iter = tf.range(token_length)
 
         audio_output, attention_mask, *states = self.listener(audio_input)
         outputs = tf.TensorArray(
             tf.float32, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
         )
 
-        for i in tf.range(token_length):
+        for i in index_iter:
             output, *states = self.attend_and_speller(
                 audio_output, tf.gather(decoder_input, i, axis=1), attention_mask, states
             )

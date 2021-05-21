@@ -27,20 +27,20 @@ parser.add_argument("--train-dataset-size", type=int, required=True, help="the n
 parser.add_argument("--output-path", default="output", help="output directory to save log and model checkpoints")
 
 parser.add_argument("--pretrained-model-path", type=str, default=None, help="pretrained model checkpoint")
-parser.add_argument("--epochs", type=int, default=10)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--steps-per-epoch", type=int, default=None)
 parser.add_argument("--learning-rate", type=float, default=1e-3)
 parser.add_argument("--min-learning-rate", type=float, default=1e-5)
 parser.add_argument("--warmup-rate", type=float, default=0.00)
 parser.add_argument("--warmup-steps", type=int)
-parser.add_argument("--batch-size", type=int, default=512)
-parser.add_argument("--dev-batch-size", type=int, default=512)
+parser.add_argument("--batch-size", type=int, default=64)
+parser.add_argument("--dev-batch-size", type=int, default=64)
 parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
 parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
 
 parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
-parser.add_argument("--validation-freq", type=int, default=20, help="validation frequency (every this epoch)")
+parser.add_argument("--validation-freq", type=int, default=10, help="validation frequency (every this epoch)")
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
 parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     if args.seed:
         set_random_seed(args.seed)
-        logger.info(f"Set random seed to {args.seed}")
+        logger.info(f"[+] Set random seed to {args.seed}")
 
     # Copy config file
     tf.io.gfile.makedirs(args.output_path)
@@ -68,10 +68,10 @@ if __name__ == "__main__":
             mixed_type = "mixed_bfloat16" if args.device == "TPU" else "mixed_float16"
             policy = tf.keras.mixed_precision.experimental.Policy(mixed_type)
             tf.keras.mixed_precision.experimental.set_policy(policy)
-            logger.info("Use Mixed Precision FP16")
+            logger.info("[+] Use Mixed Precision FP16")
 
         # Load Config
-        logger.info(f"Load Data Config from {args.data_config_path}")
+        logger.info(f"[+] Load Data Config from {args.data_config_path}")
         with tf.io.gfile.GFile(args.data_config_path) as f:
             config = OmegaConf.load(f)
 
@@ -92,17 +92,17 @@ if __name__ == "__main__":
             )
         )
         if args.use_tfrecord:
-            logger.info(f"Load TFRecord train dataset from {args.train_dataset_paths}")
+            logger.info(f"[+] Load TFRecord train dataset from {args.train_dataset_paths}")
             train_dataset = get_tfrecord_dataset(args.train_dataset_paths)
-            logger.info(f"Load TFRecord dev dataset from {args.train_dataset_paths}")
+            logger.info(f"[+] Load TFRecord dev dataset from {args.train_dataset_paths}")
             dev_dataset = get_tfrecord_dataset(args.train_dataset_paths)
         else:
             # Load Tokenizer
-            logger.info(f"Load Tokenizer from {args.sp_model_path}")
+            logger.info(f"[+] Load Tokenizer from {args.sp_model_path}")
             with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
                 tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-            logger.info(f"Load train dataset from {args.train_dataset_paths}")
+            logger.info(f"[+] Load train dataset from {args.train_dataset_paths}")
             train_dataset = get_dataset(
                 args.train_dataset_paths,
                 config.file_format,
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 tokenizer,
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-            logger.info(f"Load dev dataset from {args.dev_dataset_paths}")
+            logger.info(f"[+] Load dev dataset from {args.dev_dataset_paths}")
             dev_dataset = get_dataset(
                 args.dev_dataset_paths,
                 config.file_format,
@@ -137,13 +137,13 @@ if __name__ == "__main__":
         )
 
         if args.max_over_policy == "filter":
+            logger.info(f"[+] Filter examples whose audio or token length is over than max value")
             train_dataset = train_dataset.filter(filter_fn)
             dev_dataset = dev_dataset.filter(filter_fn)
-            logger.info(f"Filter examples whose audio or token length is over than max value")
         elif args.max_over_policy == "slice":
+            logger.info(f"[+] Slice examples whose audio or token length is over than max value")
             train_dataset = train_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             dev_dataset = dev_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            logger.info(f"Slice examples whose audio or token length is over than max value")
         elif args.device == "TPU":
             raise RuntimeError(f"You should set max-over-sequence-policy with TPU!")
 
@@ -154,10 +154,11 @@ if __name__ == "__main__":
         dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         if args.steps_per_epoch:
+            logger.info("[+] Repeat dataset")
             train_dataset = train_dataset.repeat()
-            logger.info("Repeat dataset")
 
         # Padded Batch
+        logger.info("[+] Pad Input data")
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length - 1
         train_dataset = train_dataset.padded_batch(
@@ -171,6 +172,7 @@ if __name__ == "__main__":
 
         # Model Initialize
         with tf.io.gfile.GFile(args.model_config_path) as f:
+            logger.info("[+] Model Initialize")
             model_config = OmegaConf.load(f)
             model = LAS(
                 model_config.vocab_size,
@@ -189,10 +191,11 @@ if __name__ == "__main__":
 
         # Load pretrained model
         if args.pretrained_model_path:
+            logger.info("[+] Load weights of model")
             model.load_weights(args.pretrained_model_path)
-            logger.info("Loaded weights of model")
 
         # Model Compile
+        logger.info("[+] Model compile")
         total_steps = ceil(args.train_dataset_size / args.batch_size) * args.epochs
         model.compile(
             optimizer=tf.optimizers.Adam(
@@ -203,10 +206,9 @@ if __name__ == "__main__":
             loss=SparseCategoricalCrossentrophy(),
             metrics=SparseCategoricalAccuracy(),
         )
-        logger.info("Model compiling complete")
-        logger.info("Start training")
 
         # Training
+        logger.info("[+] Start training")
         model.fit(
             train_dataset,
             validation_data=dev_dataset,
