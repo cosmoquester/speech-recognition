@@ -12,6 +12,7 @@ from speech_recognition.data import (
     make_log_mel_spectrogram,
     make_train_examples,
 )
+from speech_recognition.measure import SparseCategoricalAccuracy, SparseCategoricalCrossentrophy
 from speech_recognition.model import LAS
 from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
@@ -147,26 +148,26 @@ if __name__ == "__main__":
             raise RuntimeError(f"You should set max-over-sequence-policy with TPU!")
 
         # Shuffle & Make train example
-        train_dataset = (
-            train_dataset.shuffle(args.shuffle_buffer_size)
-            .map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            .unbatch()
+        train_dataset = train_dataset.shuffle(args.shuffle_buffer_size).map(
+            make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
-        dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE).unbatch()
-
-        # Padded Batch
-        audio_pad_length = None if args.device != "TPU" else config.max_audio_length
-        token_pad_length = None if args.device != "TPU" else config.max_token_length
-        train_dataset = train_dataset.padded_batch(
-            args.batch_size, (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), ())
-        ).prefetch(tf.data.experimental.AUTOTUNE)
-        dev_dataset = dev_dataset.padded_batch(
-            args.dev_batch_size, (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), ())
-        )
+        dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         if args.steps_per_epoch:
             train_dataset = train_dataset.repeat()
             logger.info("Repeat dataset")
+
+        # Padded Batch
+        audio_pad_length = None if args.device != "TPU" else config.max_audio_length
+        token_pad_length = None if args.device != "TPU" else config.max_token_length - 1
+        train_dataset = train_dataset.padded_batch(
+            args.batch_size,
+            (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), [token_pad_length]),
+        ).prefetch(tf.data.experimental.AUTOTUNE)
+        dev_dataset = dev_dataset.padded_batch(
+            args.dev_batch_size,
+            (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), [token_pad_length]),
+        )
 
         # Model Initialize
         with tf.io.gfile.GFile(args.model_config_path) as f:
@@ -199,8 +200,8 @@ if __name__ == "__main__":
                     total_steps, args.learning_rate, args.min_learning_rate, args.warmup_rate, args.warmup_steps
                 )
             ),
-            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-            metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="accuracy")],
+            loss=SparseCategoricalCrossentrophy(),
+            metrics=SparseCategoricalAccuracy(),
         )
         logger.info("Model compiling complete")
         logger.info("Start training")

@@ -176,16 +176,6 @@ def delta_accelerate(audio: tf.Tensor):
 
 
 @tf.function
-def make_train_examples(source_tokens: tf.Tensor, target_tokens: tf.Tensor):
+def make_train_examples(audio: tf.Tensor, token: tf.Tensor):
     """Make training examples from source and target tokens."""
-    # Make training example
-    num_examples = tf.shape(target_tokens)[0] - 1
-
-    # [NumExamples, EncoderSequence]
-    encoder_input = tf.repeat([source_tokens], repeats=[num_examples], axis=0)
-    # [NumExamples, DecoderSequence]
-    decoder_input = target_tokens * tf.sequence_mask(tf.range(1, num_examples + 1), num_examples + 1, tf.int32)
-    # [NumExamples]
-    labels = target_tokens[1:]
-
-    return (encoder_input, decoder_input), labels
+    return (audio, token[:-1]), token[1:]
