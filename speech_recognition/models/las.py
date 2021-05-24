@@ -1,7 +1,17 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM, BatchNormalization, Conv2D, Dense, Dropout, Embedding
+from tensorflow.keras.layers import GRU, LSTM, BatchNormalization, Conv2D, Dense, Dropout, Embedding, SimpleRNN
+
+
+def get_rnn_cls(rnn_type: str) -> Union[SimpleRNN, LSTM, GRU]:
+    if rnn_type == "rnn":
+        return SimpleRNN
+    if rnn_type == "lstm":
+        return LSTM
+    if rnn_type == "gru":
+        return GRU
+    raise ValueError(f"rnn_type: {rnn_type} is invalid!")
 
 
 class AdditiveAttention(tf.keras.layers.Layer):
@@ -46,12 +56,13 @@ class AdditiveAttention(tf.keras.layers.Layer):
         return context
 
 
-class BiLSTM(tf.keras.layers.Layer):
+class BiRNN(tf.keras.layers.Layer):
     """
     Custom Bi-directional RNN Wrapper because of issue.
     https://github.com/tensorflow/tensorflow/issues/48880
 
     Arguments:
+        rnn_type: String, the type of rnn. one of ['rnn', 'lstm', 'gru'].
         units: Integer, the hidden dimension size of seq2seq rnn.
         dropout: Float, dropout rate.
         recurrent_dropout: Float, reccurent dropout rate.
@@ -64,14 +75,16 @@ class BiLSTM(tf.keras.layers.Layer):
 
     def __init__(
         self,
+        rnn_type: str,
         units: int,
         dropout: float = 0.0,
         recurrent_dropout: float = 0.0,
         **kwargs,
     ):
-        super(BiLSTM, self).__init__(**kwargs)
+        super(BiRNN, self).__init__(**kwargs)
 
-        self.forward_rnn = LSTM(
+        rnn_cls = get_rnn_cls(rnn_type)
+        self.forward_rnn = rnn_cls(
             units=units,
             return_sequences=True,
             return_state=True,
@@ -79,7 +92,7 @@ class BiLSTM(tf.keras.layers.Layer):
             recurrent_dropout=recurrent_dropout,
             name="forward_rnn",
         )
-        self.backward_rnn = LSTM(
+        self.backward_rnn = rnn_cls(
             units=units,
             return_sequences=True,
             return_state=True,
@@ -94,8 +107,9 @@ class BiLSTM(tf.keras.layers.Layer):
             forward_states = None
             backward_states = None
         else:
-            forward_states = initial_state[:2]
-            backward_states = initial_state[2:]
+            num_states = len(initial_state) // 2
+            forward_states = initial_state[:num_states]
+            backward_states = initial_state[num_states:]
 
         forward_output, *forward_states = self.forward_rnn(inputs, mask=mask, initial_state=forward_states)
         backward_output, *backward_states = self.backward_rnn(inputs, mask=mask, initial_state=backward_states)
@@ -108,6 +122,7 @@ class Listener(tf.keras.layers.Layer):
     Listener of LAS model.
 
     Arguments:
+        rnn_type: String, the type of rnn. one of ['rnn', 'lstm', 'gru'].
         encoder_hidden_dim: Integer, the hidden dimension size of SampleModel encoder.
         decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
         num_encoder_layers: Integer, the number of seq2seq encoder.
@@ -124,6 +139,7 @@ class Listener(tf.keras.layers.Layer):
 
     def __init__(
         self,
+        rnn_type: str,
         encoder_hidden_dim: int,
         decoder_hidden_dim: int,
         num_encoder_layers: int,
@@ -139,13 +155,16 @@ class Listener(tf.keras.layers.Layer):
 
         self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
         self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
+
         self.encoder_layers = [
-            BiLSTM(encoder_hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)
+            BiRNN(rnn_type, encoder_hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)
         ]
         self.projection = [Dense(encoder_hidden_dim * 2, name=f"proejction{i}") for i in range(num_encoder_layers)]
         self.batch_norm = [BatchNormalization(name=f"batch_normalization{i}") for i in range(num_encoder_layers)]
         self.hidden_states_proj = Dense(decoder_hidden_dim, name="hidden_state_proj")
-        self.cell_states_proj = Dense(decoder_hidden_dim, name="cell_state_proj")
+        if rnn_type == "lstm":
+            self.cell_states_proj = Dense(decoder_hidden_dim, name="cell_state_proj")
+
         self.dropout = Dropout(dropout, name="dropout")
 
     def call(self, audio: tf.Tensor, training: Optional[bool] = None) -> List[tf.Tensor]:
@@ -167,10 +186,13 @@ class Listener(tf.keras.layers.Layer):
             audio = tf.nn.relu(batch_norm(projection(audio)))
 
         # Concat states of two directions
-        states = [
-            self.hidden_states_proj(tf.concat(states[::2], axis=-1)),
-            self.cell_states_proj(tf.concat(states[1::2], axis=-1)),
-        ]
+        if len(states) == 2:
+            states = [self.hidden_states_proj(tf.concat(states, axis=-1))]
+        elif len(states) == 4:
+            states = [
+                self.hidden_states_proj(tf.concat(states[::2], axis=-1)),
+                self.cell_states_proj(tf.concat(states[1::2], axis=-1)),
+            ]
         return [audio, mask] + states
 
     @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
@@ -194,6 +216,7 @@ class AttendAndSpeller(tf.keras.layers.Layer):
     Attend and Speller of LAS model.
 
     Arguments:
+        rnn_type: String, the type of rnn. one of ['rnn', 'lstm', 'gru'].
         vocab_size: Integer, the size of vocabulary.
         hidden_dim: Integer, the hidden dimension size of SampleModel.
         num_decoder_layers: Integer, the number of seq2seq decoder.
@@ -212,14 +235,23 @@ class AttendAndSpeller(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self, vocab_size: int, hidden_dim: int, num_decoder_layers: int, dropout: float, pad_id: int, **kwargs
+        self,
+        rnn_type: str,
+        vocab_size: int,
+        hidden_dim: int,
+        num_decoder_layers: int,
+        dropout: float,
+        pad_id: int,
+        **kwargs,
     ):
         super(AttendAndSpeller, self).__init__(**kwargs)
+
+        rnn_cls = get_rnn_cls(rnn_type)
 
         self.pad_id = pad_id
         self.embedding = Embedding(vocab_size, hidden_dim)
         self.decoder_layers = [
-            LSTM(hidden_dim, dropout=dropout, return_state=True, name=f"decoder_layer{i}")
+            rnn_cls(hidden_dim, dropout=dropout, return_state=True, name=f"decoder_layer{i}")
             for i in range(num_decoder_layers)
         ]
         self.attention = AdditiveAttention(hidden_dim, name="attention")
@@ -259,6 +291,7 @@ class LAS(tf.keras.Model):
     This is Listen, Attend and Spell(LAS) model for speech recognition.
 
     Arguments:
+        rnn_type: String, the type of rnn. one of ['rnn', 'lstm', 'gru'].
         vocab_size: Integer, the size of vocabulary.
         encoder_hidden_dim: Integer, the hidden dimension size of SampleModel encoder.
         decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
@@ -280,6 +313,7 @@ class LAS(tf.keras.Model):
 
     def __init__(
         self,
+        rnn_type: str,
         vocab_size: int,
         encoder_hidden_dim: int,
         decoder_hidden_dim: int,
@@ -293,10 +327,10 @@ class LAS(tf.keras.Model):
 
         self.vocab_size = vocab_size
         self.listener = Listener(
-            encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, pad_id, name="listener"
+            rnn_type, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, pad_id, name="listener"
         )
         self.attend_and_speller = AttendAndSpeller(
-            vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
+            rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:

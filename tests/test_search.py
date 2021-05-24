@@ -6,6 +6,7 @@ from speech_recognition.search import Searcher
 
 def test_search():
     model = LAS(
+        rnn_type="lstm",
         vocab_size=100,
         encoder_hidden_dim=32,
         decoder_hidden_dim=32,

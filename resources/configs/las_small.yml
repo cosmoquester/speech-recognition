@@ -1,3 +1,5 @@
+# RNN Type: one of ['rnn', 'lstm', 'gru']
+rnn_type: lstm
 # Vocab Size
 vocab_size: 16000
 # Encoder Hidden Dimension
