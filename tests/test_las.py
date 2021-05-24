@@ -19,10 +19,15 @@ def test_additive_attention(hidden_dim, sequence_length, batch_size):
 
 
 @pytest.mark.parametrize(
-    "vocab_size,hidden_dim,num_encoder_layers,num_decoder_layers,batch_size,audio_dim,audio_sequence_length,num_tokens",
-    [(12345, 122, 1, 2, 3, 88, 12, 8), (3030, 320, 3, 5, 1, 34, 33, 1), (12, 12, 12, 12, 12, 12, 12, 12)],
+    "rnn_type,vocab_size,hidden_dim,num_encoder_layers,num_decoder_layers,batch_size,audio_dim,audio_sequence_length,num_tokens",
+    [
+        ("rnn", 12345, 122, 1, 2, 3, 88, 12, 8),
+        ("lstm", 3030, 320, 3, 5, 1, 34, 33, 1),
+        ("gru", 12, 12, 12, 12, 12, 12, 12, 12),
+    ],
 )
 def test_las(
+    rnn_type,
     vocab_size,
     hidden_dim,
     num_encoder_layers,
@@ -32,7 +37,7 @@ def test_las(
     audio_sequence_length,
     num_tokens,
 ):
-    las = LAS(vocab_size, hidden_dim, hidden_dim, num_encoder_layers, num_decoder_layers, 0.1)
+    las = LAS(rnn_type, vocab_size, hidden_dim, hidden_dim, num_encoder_layers, num_decoder_layers, 0.1)
     audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim, 3])
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
 
