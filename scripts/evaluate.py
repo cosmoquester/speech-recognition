@@ -6,7 +6,7 @@ import tensorflow_text as text
 from omegaconf import OmegaConf
 
 from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
-from speech_recognition.model import LAS
+from speech_recognition.models import LAS
 from speech_recognition.search import Searcher
 from speech_recognition.utils import get_device_strategy, get_logger, levenshtein_distance
 

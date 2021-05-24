@@ -1,7 +1,7 @@
 import pytest
 import tensorflow as tf
 
-from speech_recognition.model import LAS, AdditiveAttention
+from speech_recognition.models.las import LAS, AdditiveAttention
 
 
 @pytest.mark.parametrize(

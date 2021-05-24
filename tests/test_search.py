@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from speech_recognition.model import LAS
+from speech_recognition.models import LAS
 from speech_recognition.search import Searcher
 
 
