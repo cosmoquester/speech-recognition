@@ -1,7 +1,7 @@
 import pytest
 import tensorflow as tf
 
-from speech_recognition.models.las import LAS, AdditiveAttention
+from speech_recognition.models.las import LAS, AdditiveAttention, BiRNN
 
 
 @pytest.mark.parametrize(
@@ -16,6 +16,32 @@ def test_additive_attention(hidden_dim, sequence_length, batch_size):
 
     output = attention(query, key, value, mask)
     tf.debugging.assert_equal(tf.shape(output), [batch_size, hidden_dim])
+
+
+@pytest.mark.parametrize(
+    "rnn_type,units,dropout,batch_size,sequence_length,feature_dim,pad_length",
+    [
+        ("rnn", 13, 0.1, 23, 11, 8, 3),
+        ("lstm", 33, 0.2, 34, 41, 2, 4),
+        ("gru", 111, 0.3, 55, 3, 99, 5),
+    ],
+)
+def test_bi_rnn(rnn_type, units, dropout, batch_size, sequence_length, feature_dim, pad_length):
+    rnn = BiRNN(rnn_type, units, dropout, dropout)
+
+    input = tf.random.normal([batch_size, sequence_length, feature_dim])
+    mask = tf.cast(tf.random.normal([batch_size, sequence_length]) > 0.1, tf.int32)
+    output, *states = rnn(input, mask)
+    assert output.shape == [batch_size, sequence_length, units * 2]
+    assert states[0].shape == [batch_size, units]
+
+    padded_input = tf.concat([input, tf.random.normal([batch_size, pad_length, feature_dim])], axis=1)
+    padded_mask = tf.concat([mask, tf.zeros([batch_size, pad_length], tf.int32)], axis=1)
+    padded_output, *padded_states = rnn(padded_input, padded_mask)
+    assert padded_output.shape == [batch_size, sequence_length + pad_length, units * 2]
+    assert padded_states[0].shape == [batch_size, units]
+
+    tf.debugging.assert_equal(output, padded_output[:, :-pad_length])
 
 
 @pytest.mark.parametrize(

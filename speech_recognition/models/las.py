@@ -113,7 +113,7 @@ class BiRNN(tf.keras.layers.Layer):
 
         forward_output, *forward_states = self.forward_rnn(inputs, mask=mask, initial_state=forward_states)
         backward_output, *backward_states = self.backward_rnn(inputs, mask=mask, initial_state=backward_states)
-        output = tf.concat([forward_output, backward_output], axis=-1)
+        output = tf.concat([forward_output, tf.reverse(backward_output, axis=[1])], axis=-1)
         return [output] + forward_states + backward_states
 
 
@@ -127,7 +127,6 @@ class Listener(tf.keras.layers.Layer):
         decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
         num_encoder_layers: Integer, the number of seq2seq encoder.
         dropout: Float,
-        pad_id: Float, pad id for audio padding
     Call arguments:
         audio: A 3D tensor, with shape of `[BatchSize, TimeStep, DimAudio]`.
         training: Python boolean indicating whether the layer should behave in
@@ -144,14 +143,13 @@ class Listener(tf.keras.layers.Layer):
         decoder_hidden_dim: int,
         num_encoder_layers: int,
         dropout: float,
-        pad_id: float,
         **kwargs,
     ):
         super(Listener, self).__init__(**kwargs)
 
         self.filter_sizes = (3, 3)
         self.strides = 2
-        self.pad_id = tf.constant(pad_id, tf.float32)
+        self.AUDIO_PAD_VALUE = 0.0
 
         self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
         self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
@@ -199,7 +197,7 @@ class Listener(tf.keras.layers.Layer):
     def _audio_mask(self, audio):
         filter_size = self.filter_sizes[0]
         batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
-        mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.pad_id, axis=2)
+        mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.AUDIO_PAD_VALUE, axis=2)
         sequence_length -= filter_size - self.strides
         sequence_length = sequence_length // self.strides
         sequence_length -= filter_size - self.strides
@@ -327,7 +325,7 @@ class LAS(tf.keras.Model):
 
         self.vocab_size = vocab_size
         self.listener = Listener(
-            rnn_type, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, pad_id, name="listener"
+            rnn_type, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, name="listener"
         )
         self.attend_and_speller = AttendAndSpeller(
             rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
