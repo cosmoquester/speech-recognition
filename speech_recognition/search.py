@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .model import LAS
+from .models import LAS
 
 
 class Searcher:

@@ -13,7 +13,7 @@ from speech_recognition.data import (
     make_train_examples,
 )
 from speech_recognition.measure import SparseCategoricalAccuracy, SparseCategoricalCrossentrophy
-from speech_recognition.model import LAS
+from speech_recognition.models import LAS
 from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
 # fmt: off
