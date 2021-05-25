@@ -60,7 +60,7 @@ class Convolution(tf.keras.layers.Layer):
         sequence_length = audio_input.shape[1] or tf.shape(audio_input)[1]
 
         # [BatchSize, ReducedTimeStep, ReducedFreqStep * HiddenDim]
-        output = tf.reshape(audio_input, [batch_size, sequence_length, -1])
+        output = tf.reshape(audio_input, [batch_size, sequence_length, audio_input.shape[2] * audio_input.shape[3]])
         return output, mask
 
     @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
@@ -106,9 +106,9 @@ class Recurrent(tf.keras.layers.Layer):
         super(Recurrent, self).__init__(**kwargs)
 
         self.rnn_layers = [
-            BiRNN(rnn_type, units, dropout, recurrent_dropout, name="reccurent_layer{i}") for i in range(num_layers)
+            BiRNN(rnn_type, units, dropout, recurrent_dropout, name=f"reccurent_layer{i}") for i in range(num_layers)
         ]
-        self.batch_norm = [BatchNormalization(name="batch_normalization{i}") for i in range(num_layers)]
+        self.batch_norm = [BatchNormalization(name=f"batch_normalization{i}") for i in range(num_layers)]
 
     def call(self, audio_input: tf.Tensor, mask: tf.Tensor) -> List:
         states = None

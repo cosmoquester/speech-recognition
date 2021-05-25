@@ -15,6 +15,24 @@ class SparseCategoricalCrossentrophy(tf.keras.losses.Loss):
         return loss
 
 
+class CTCLoss(tf.keras.losses.Loss):
+    """Loss function to train DeepSpeech2"""
+
+    def __init__(self, blank_index: int, pad_index: int = 0, name="ctc_loss"):
+        super().__init__(name=name)
+        self.blank_index = blank_index
+        self.pad_index = pad_index
+
+    def call(self, y_true, y_pred):
+        batch_size = tf.shape(y_true)[0]
+        sequence_length = y_pred.shape[1] or tf.shape(y_pred)[1]
+
+        label_lengths = tf.math.count_nonzero(y_true != self.pad_index, axis=1)
+        logit_lengths = tf.fill([batch_size], sequence_length)
+        loss = tf.nn.ctc_loss(y_true, y_pred, label_lengths, logit_lengths, False, blank_index=self.blank_index)
+        return loss
+
+
 class SparseCategoricalAccuracy(tf.keras.metrics.Metric):
     """Normal sparse categorical accuracy with ignore index"""
 
