@@ -3,7 +3,9 @@ from typing import List
 import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, Conv2D, Dense
 
+from ..measure import CTCLoss
 from .las import BiRNN
+from .model_proto import ModelProto
 
 
 class Convolution(tf.keras.layers.Layer):
@@ -118,7 +120,7 @@ class Recurrent(tf.keras.layers.Layer):
         return audio_input
 
 
-class DeepSpeech2(tf.keras.Model):
+class DeepSpeech2(ModelProto):
     """
     This is DeepSpeech2 model for speech recognition.
 
@@ -133,8 +135,10 @@ class DeepSpeech2(tf.keras.Model):
         dropout: Float, dropout rate.
         recurrent_dropout: Float, reccurent dropout rate.
         vocab_size: Integer, the size of vocabulary.
+        blank_index: Integer, the index of blank token separating token.
+        pad_index: Integer, the index of pad token.
     Call arguments:
-        inputs: [BatchSize, TimeStep, FreqStep, FeatureDim]
+        audio_input: [BatchSize, TimeStep, FreqStep, FeatureDim]
     Output Shape:
         output: `[BatchSize, SequenceLength, VocabSize]`
     """
@@ -151,6 +155,8 @@ class DeepSpeech2(tf.keras.Model):
         dropout: float,
         recurrent_dropout: float,
         vocab_size: int,
+        blank_index: int,
+        pad_index: int = 0,
         **kwargs,
     ):
         super(DeepSpeech2, self).__init__(**kwargs)
@@ -160,9 +166,18 @@ class DeepSpeech2(tf.keras.Model):
             rnn_type, num_reccurent_layers, hidden_dim, dropout, recurrent_dropout, name="recurrent"
         )
         self.fully_connected = Dense(vocab_size)
+        self.loss_fn = CTCLoss(blank_index, pad_index)
 
     def call(self, audio_input):
         audio, mask = self.convolution(audio_input)
         audio = self.recurrent(audio, mask) * tf.cast(mask[:, :, tf.newaxis], tf.float32)
         output = self.fully_connected(audio)
         return output
+
+    @property
+    def metrics(self):
+        return []
+
+    @staticmethod
+    def get_batching_shape(audio_pad_length: int, token_pad_length: int, num_mel_bins: int):
+        return ([audio_pad_length, num_mel_bins, 3], [token_pad_length])

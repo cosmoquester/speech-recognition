@@ -5,19 +5,19 @@ import tensorflow as tf
 import tensorflow_text as text
 from omegaconf import OmegaConf
 
-from speech_recognition.data import (
-    delta_accelerate,
-    get_dataset,
-    get_tfrecord_dataset,
-    make_log_mel_spectrogram,
-    make_train_examples,
+from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
+from speech_recognition.utils import (
+    LRScheduler,
+    create_model,
+    get_device_strategy,
+    get_logger,
+    path_join,
+    set_random_seed,
 )
-from speech_recognition.measure import SparseCategoricalAccuracy, SparseCategoricalCrossentrophy
-from speech_recognition.models import LAS
-from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
 # fmt: off
 parser = argparse.ArgumentParser()
+parser.add_argument("--model-type", type=str, default="las", choices=["las", "ds2"], help="model type 'las' or 'ds2'")
 parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
 parser.add_argument("--model-config-path", type=str, default="resources/configs/las_small.yml", help="model config file")
 parser.add_argument("--sp-model-path", type=str, default=None, help="sentencepiece model path")
@@ -137,57 +137,28 @@ if __name__ == "__main__":
         )
 
         if args.max_over_policy == "filter":
-            logger.info(f"[+] Filter examples whose audio or token length is over than max value")
+            logger.info("[+] Filter examples whose audio or token length is over than max value")
             train_dataset = train_dataset.filter(filter_fn)
             dev_dataset = dev_dataset.filter(filter_fn)
         elif args.max_over_policy == "slice":
-            logger.info(f"[+] Slice examples whose audio or token length is over than max value")
+            logger.info("[+] Slice examples whose audio or token length is over than max value")
             train_dataset = train_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             dev_dataset = dev_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         elif args.device == "TPU":
-            raise RuntimeError(f"You should set max-over-sequence-policy with TPU!")
+            raise RuntimeError("You should set max-over-sequence-policy with TPU!")
 
-        # Shuffle & Make train example
-        train_dataset = train_dataset.shuffle(args.shuffle_buffer_size).map(
-            make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE
-        )
-        dev_dataset = dev_dataset.map(make_train_examples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
-        if args.steps_per_epoch:
-            logger.info("[+] Repeat dataset")
-            train_dataset = train_dataset.repeat()
-
-        # Padded Batch
-        logger.info("[+] Pad Input data")
+        # Model Initi alize
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
-        token_pad_length = None if args.device != "TPU" else config.max_token_length - 1
-        train_dataset = train_dataset.padded_batch(
-            args.batch_size,
-            (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), [token_pad_length]),
-        ).prefetch(tf.data.experimental.AUTOTUNE)
-        dev_dataset = dev_dataset.padded_batch(
-            args.dev_batch_size,
-            (([audio_pad_length, config.num_mel_bins, 3], [token_pad_length]), [token_pad_length]),
-        )
-
-        # Model Initialize
+        token_pad_length = None if args.device != "TPU" else config.max_token_length
         with tf.io.gfile.GFile(args.model_config_path) as f:
             logger.info("[+] Model Initialize")
-            model_config = OmegaConf.load(f)
-            model = LAS(
-                model_config.vocab_size,
-                model_config.encoder_hidden_dim,
-                model_config.decoder_hidden_dim,
-                model_config.num_encoder_layers,
-                model_config.num_decoder_layers,
-                model_config.pad_id,
+            model = create_model(OmegaConf.load(f))
+
+            model_input, _ = model.make_example(
+                tf.keras.Input([audio_pad_length, config.num_mel_bins, 3], dtype=tf.float32),
+                tf.keras.Input([token_pad_length], dtype=tf.int32),
             )
-            model(
-                (
-                    tf.keras.Input([audio_pad_length, config.num_mel_bins, 3], dtype=tf.float32),
-                    tf.keras.Input([token_pad_length], dtype=tf.int32),
-                )
-            )
+            model(model_input)
             model.summary()
 
         # Load pretrained model
@@ -204,9 +175,27 @@ if __name__ == "__main__":
                     total_steps, args.learning_rate, args.min_learning_rate, args.warmup_rate, args.warmup_steps
                 )
             ),
-            loss=SparseCategoricalCrossentrophy(),
-            metrics=SparseCategoricalAccuracy(),
+            loss=model.loss_fn,
+            metrics=model.metrics,
         )
+
+        # Shuffle & Make train example
+        train_dataset = train_dataset.shuffle(args.shuffle_buffer_size).map(
+            model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        )
+        dev_dataset = dev_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        if args.steps_per_epoch:
+            logger.info("[+] Repeat dataset")
+            train_dataset = train_dataset.repeat()
+
+        # Padded Batch
+        logger.info("[+] Pad Input data")
+        padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins)
+        train_dataset = train_dataset.padded_batch(args.batch_size, padded_shape).prefetch(
+            tf.data.experimental.AUTOTUNE
+        )
+        dev_dataset = dev_dataset.padded_batch(args.dev_batch_size, padded_shape)
 
         # Training
         logger.info("[+] Start training")

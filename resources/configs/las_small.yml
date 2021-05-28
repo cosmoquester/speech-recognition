@@ -1,3 +1,5 @@
+# Model Name
+model_name: las
 # RNN Type: one of ['rnn', 'lstm', 'gru']
 rnn_type: lstm
 # Vocab Size

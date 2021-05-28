@@ -7,6 +7,24 @@ from typing import Dict, Iterable, Optional, Union
 import numpy as np
 import tensorflow as tf
 
+from .models import LAS, DeepSpeech2, ModelProto
+
+
+def create_model(model_config: Dict) -> ModelProto:
+    """
+    Create model instance from config.
+
+    :param model_config: dictionary contains 'model_name' as ASR name and initialize arguments.
+    :returns: create model instance
+    """
+    model_name = model_config.pop("model_name").lower()
+
+    if model_name in ["ds2", "deepspeech2"]:
+        return DeepSpeech2(**model_config)
+    if model_name in ["las"]:
+        return LAS(**model_config)
+    raise ValueError(f"Model Name: {model_name} is invalid!")
+
 
 class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
     """Schedule learning rate linearly from max_learning_rate to min_learning_rate."""
