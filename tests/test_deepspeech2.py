@@ -93,6 +93,7 @@ def test_deepspeech2(
         dropout,
         dropout,
         vocab_size,
+        10,
     )
     audio = tf.random.normal([batch_size, sequence_length, freq_bins, feature_dim])
     output = deepspeech2(audio)
