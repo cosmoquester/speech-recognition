@@ -3,6 +3,9 @@ from typing import List, Optional, Tuple, Union
 import tensorflow as tf
 from tensorflow.keras.layers import GRU, LSTM, BatchNormalization, Conv2D, Dense, Dropout, Embedding, SimpleRNN
 
+from ..measure import SparseCategoricalAccuracy, SparseCategoricalCrossentrophy
+from .model_proto import ModelProto
+
 
 def get_rnn_cls(rnn_type: str) -> Union[SimpleRNN, LSTM, GRU]:
     if rnn_type == "rnn":
@@ -284,7 +287,7 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         return [output] + states
 
 
-class LAS(tf.keras.Model):
+class LAS(ModelProto):
     """
     This is Listen, Attend and Spell(LAS) model for speech recognition.
 
@@ -330,6 +333,8 @@ class LAS(tf.keras.Model):
         self.attend_and_speller = AttendAndSpeller(
             rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
+        self.loss_fn = SparseCategoricalCrossentrophy(pad_id)
+        self.metrics = SparseCategoricalAccuracy(pad_id)
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
         # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
@@ -356,3 +361,7 @@ class LAS(tf.keras.Model):
 
         result = tf.transpose(outputs.stack(), [1, 0, 2])
         return result
+
+    @staticmethod
+    def get_batching_shape(audio_pad_length: int, token_pad_length: int, num_mel_bins: int):
+        return (([audio_pad_length, num_mel_bins, 3], [token_pad_length]), [token_pad_length])

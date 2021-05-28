@@ -173,9 +173,3 @@ def delta_accelerate(audio: tf.Tensor):
     # [TimeStep, AudioDim, 3]
     audio = tf.stack([audio, delta, deltas], axis=2)
     return audio
-
-
-@tf.function
-def make_train_examples(audio: tf.Tensor, token: tf.Tensor):
-    """Make training examples from source and target tokens."""
-    return (audio, token[:-1]), token[1:]

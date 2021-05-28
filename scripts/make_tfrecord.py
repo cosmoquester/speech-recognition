@@ -61,7 +61,7 @@ if __name__ == "__main__":
         )
     )
 
-    logger.info(f"[+] Start Saving Dataset...")
+    logger.info("[+] Start Saving Dataset...")
     for file_path in tqdm(input_files):
         output_dir = args.output_dir if args.output_dir else os.path.dirname(file_path)
         file_name = os.path.basename(file_path)
@@ -76,4 +76,4 @@ if __name__ == "__main__":
         writer = tf.data.experimental.TFRecordWriter(output_path, "GZIP")
         writer.write(dataset)
 
-    logger.info(f"[+] Done")
+    logger.info("[+] Done")
