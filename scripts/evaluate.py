@@ -6,9 +6,9 @@ import tensorflow_text as text
 from omegaconf import OmegaConf
 
 from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
-from speech_recognition.models import LAS
-from speech_recognition.search import LAS_Searcher
-from speech_recognition.utils import get_device_strategy, get_logger, levenshtein_distance
+from speech_recognition.models import LAS, DeepSpeech2
+from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
+from speech_recognition.utils import create_model, get_device_strategy, get_logger, levenshtein_distance
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
@@ -81,23 +81,20 @@ if __name__ == "__main__":
         # Model Initialize & Load pretrained model
         with tf.io.gfile.GFile(args.model_config_path) as f:
             model_config = OmegaConf.load(f)
-            model = LAS(
-                model_config.vocab_size,
-                model_config.hidden_dim,
-                model_config.num_encoder_layers,
-                model_config.num_decoder_layers,
-                model_config.pad_id,
+            model = create_model(model_config)
+
+            model_input, _ = model.make_example(
+                tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
+                tf.keras.Input([None], dtype=tf.int32),
             )
-            model(
-                (
-                    tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
-                    tf.keras.Input([None], dtype=tf.int32),
-                )
-            )
+            model(model_input)
             model.load_weights(args.model_path)
             model.summary()
 
-        searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
+        if isinstance(model, LAS):
+            searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
+        elif isinstance(model, DeepSpeech2):
+            searcher = DeepSpeechSearcher(model, config.max_token_length, model_config.blank_index)
         logger.info(f"Loaded weights of model from {args.model_path}")
 
         # Inference
