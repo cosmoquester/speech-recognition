@@ -1,26 +1,29 @@
+from abc import ABCMeta, abstractmethod, abstractproperty, abstractstaticmethod
 from typing import Optional
 
 import tensorflow as tf
 
 
-class ModelProto(tf.keras.Model):
+class ModelProto(tf.keras.Model, metaclass=ABCMeta):
     """Prototype structure of ASR models"""
 
     def __init__(self, *args, **kwargs):
         super(ModelProto, self).__init__(*args, **kwargs)
 
+    @abstractmethod
     def call(self, inputs, training: Optional[bool] = None) -> tf.Tensor:
-        raise NotImplementedError("Should implement call function!")
+        pass
 
-    def loss_fn(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
-        raise NotImplementedError("Should implement loss_fn!")
+    @abstractproperty
+    def loss_fn(self) -> tf.Tensor:
+        pass
 
-    @property
+    @abstractproperty
     def metrics(self):
         """Tensorflow metrics for model compile"""
-        raise NotImplementedError("Should set metrics")
+        pass
 
-    @staticmethod
+    @abstractstaticmethod
     def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int):
         """
         Return shapes of padded batch.
@@ -29,9 +32,9 @@ class ModelProto(tf.keras.Model):
         :param token_pad_length: target token pad length
         :param num_mel_bins: number of mel bins
         """
-        raise NotImplementedError("Should implement get_batching_fn!")
+        pass
 
-    @staticmethod
+    @abstractstaticmethod
     def make_example(audio: tf.Tensor, tokens: tf.Tensor):
         """
         Make training example from audio input and token output.
@@ -39,6 +42,5 @@ class ModelProto(tf.keras.Model):
 
         :param audio: input audio tensor
         :param tokens: target tokens shaped [NumTokens]
-        :returns: return input as output by default
         """
-        return audio, tokens
+        pass

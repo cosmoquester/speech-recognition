@@ -16,6 +16,9 @@
 - [On the Choice of Modeling Unit for Sequence-to-Sequence Speech Recognition](https://arxiv.org/abs/1902.01955)
 - [SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition](https://arxiv.org/abs/1904.08779v3)
 
+## DeepSpeech2 Model
+
+- [Deep Speech 2: End-to-End Speech Recognition in English and Mandarin](https://arxiv.org/abs/1512.02595)
 # Dataset Format
 
 - Dataset File is tsv(tab separated values) format.

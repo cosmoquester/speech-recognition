@@ -335,7 +335,7 @@ class LAS(ModelProto):
         )
 
         # Measures
-        self.loss_fn = SparseCategoricalCrossentrophy(pad_id)
+        self._loss_fn = SparseCategoricalCrossentrophy(pad_id)
         self._metrics = [SparseCategoricalAccuracy(pad_id)]
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
@@ -363,6 +363,10 @@ class LAS(ModelProto):
 
         result = tf.transpose(outputs.stack(), [1, 0, 2])
         return result
+
+    @property
+    def loss_fn(self):
+        return self._loss_fn
 
     @property
     def metrics(self):

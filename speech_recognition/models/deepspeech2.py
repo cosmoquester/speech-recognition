@@ -168,7 +168,7 @@ class DeepSpeech2(ModelProto):
         self.fully_connected = Dense(vocab_size)
 
         # Measures
-        self.loss_fn = CTCLoss(blank_index, pad_index)
+        self._loss_fn = CTCLoss(blank_index, pad_index)
 
     def call(self, audio_input):
         audio, mask = self.convolution(audio_input)
@@ -177,9 +177,25 @@ class DeepSpeech2(ModelProto):
         return output
 
     @property
+    def loss_fn(self):
+        return self._loss_fn
+
+    @property
     def metrics(self):
         return []
 
     @staticmethod
     def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int):
         return ([audio_pad_length, num_mel_bins, 3], [token_pad_length])
+
+    @staticmethod
+    def make_example(audio: tf.Tensor, tokens: tf.Tensor):
+        """
+        Make training example from audio input and token output.
+        Output should be (MODEL_INPUT, Y_TRUE)
+
+        :param audio: input audio tensor
+        :param tokens: target tokens shaped [NumTokens]
+        :returns: use input directly as example
+        """
+        return audio, tokens
