@@ -1,9 +1,9 @@
 import tensorflow as tf
 
-from .models import LAS
+from .models import LAS, DeepSpeech2
 
 
-class Searcher:
+class LAS_Searcher:
     """Provide search functions for LAS model"""
 
     def __init__(self, model: LAS, max_token_length: int, bos_id: int, eos_id: int, pad_id: int = 0):
@@ -25,8 +25,8 @@ class Searcher:
         """
         Generate sentences using decoder by greedy searching.
 
-        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, 3].
-        :return: generated tensor shaped. and ppl value of each generated sentences
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, FeatureDim].
+        :return: generated tensor shaped [BatchSize, TokenLength]. and ppl value of each generated sentences
         """
         batch_size = tf.shape(audio_input)[0]
         decoder_input = tf.fill([batch_size, 1], self.bos_id)
@@ -91,12 +91,12 @@ class Searcher:
         """
         Generate sentences using decoder by beam searching.
 
-        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, 3].
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, FeatureDim].
         :param beam_size: beam size for beam search.
         :param alpha: length penalty control variable
         :param beta: length penalty control variable, meaning minimum length.
         :return: generated tensor shaped. and ppl value of each generated sentences
-            decoder_input: (BatchSize, BeamSize, SequenceLength)
+            decoder_input: (BatchSize, BeamSize, TokenLength)
             perplexity: (BatchSize, BeamSize)
         """
         batch_size = tf.shape(audio_input)[0]
@@ -152,7 +152,7 @@ class Searcher:
                 log_perplexity = tf.cast(log_probs, log_perplexity.dtype)
                 return audio_output, decoder_input, mask, log_perplexity, states
             else:
-                # [BatchSize * BeamSize, BeamSize, DecoderSequenceLength + 1]
+                # [BatchSize * BeamSize, BeamSize, TokenLength + 1]
                 decoder_input = tf.reshape(
                     tf.concat((tf.repeat(decoder_input, beam_size, axis=0), new_tokens), axis=1),
                     [batch_size, beam_size * beam_size, -1],
@@ -172,7 +172,7 @@ class Searcher:
                 axis=1,
             )
 
-            # [BatchSize * BeamSize, DecoderSequenceLength]
+            # [BatchSize * BeamSize, TokenLength]
             decoder_input = tf.gather_nd(decoder_input, indices_for_decoder_input)
             log_perplexity = tf.cast(tf.gather_nd(log_probs, indices_for_decoder_input), log_perplexity.dtype)
             log_perplexity = tf.reshape(log_perplexity, [batch_size, beam_size])
@@ -207,3 +207,72 @@ class Searcher:
         perplexity = tf.pow(tf.exp(log_perplexity), tf.cast(-1 / sequence_lengths, log_perplexity.dtype))
 
         return decoder_input, perplexity
+
+
+class DeepSpeechSearcher:
+    """Provide search functions for DeepSpeech2 model"""
+
+    def __init__(self, model: DeepSpeech2, max_token_length: int, blank_index: int):
+        self.model = model
+        self.max_token_length = max_token_length
+        self.blank_index = blank_index
+
+    def greedy_search(self, audio_input: tf.Tensor):
+        """
+        Generate sentences using decoder by greedy searching.
+
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, FeatureDim].
+        :return: generated tensor shaped [BatchSize, TokenLength]. and sequence probability shaped [BatchSize]
+        """
+        batch_size = tf.shape(audio_input)[0]
+
+        # [BatchSize, TokenLength, VocabSize]
+        output = self.model(audio_input)
+
+        # tf ctc search functions consider last vocab index as blank
+        # [BatchSize, TokenLength, VocabSize + 1]
+        output = tf.concat([output, output[:, :, self.blank_index : self.blank_index + 1]], axis=2)
+        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2])
+        output = tf.nn.log_softmax(output + mask)
+
+        # [TokenLength, BatchSize, VocabSize + 1]
+        output = tf.transpose(output, [1, 0, 2])
+
+        # tokens: [BatchSize, TokenLength], probability: [BatchSize]
+        decoded, neg_sum_logits = tf.nn.ctc_greedy_decoder(output, tf.fill([batch_size], self.max_token_length))
+        tokens = tf.sparse.to_dense(decoded[0])
+        probability = tf.exp(-neg_sum_logits)[:, 0]
+
+        return tokens, probability
+
+    def beam_search(self, audio_input: tf.Tensor, beam_size: int):
+        """
+        Generate sentences using decoder by beam searching.
+
+        :param audio_input: model. model inputs [BatchSize, TimeStep, DimAudio, FeatureDim].
+        :return: generated tensor shaped. and sequence probability value of each generated sentences
+            decoder_input: (BatchSize, BeamSize, TokenLength)
+            probability: (BatchSize, BeamSize)
+        """
+        batch_size = tf.shape(audio_input)[0]
+
+        # [BatchSize, TokenLength, VocabSize]
+        output = self.model(audio_input)
+
+        # tf ctc search functions consider last vocab index as blank
+        # [BatchSize, TokenLength, VocabSize + 1]
+        output = tf.concat([output, output[:, :, self.blank_index : self.blank_index + 1]], axis=2)
+        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2])
+        output = tf.nn.log_softmax(output + mask)
+
+        # [TokenLength, BatchSize, VocabSize + 1]
+        output = tf.transpose(output, [1, 0, 2])
+
+        # tokens: [BatchSize, BeamSize, TokenLength]
+        decoded, log_probability = tf.nn.ctc_beam_search_decoder(
+            output, tf.fill([batch_size], self.max_token_length), beam_size
+        )
+        tokens = tf.stack([tf.sparse.to_dense(d) for d in decoded], axis=1)
+        probability = tf.exp(log_probability)
+
+        return tokens, probability
