@@ -333,8 +333,10 @@ class LAS(ModelProto):
         self.attend_and_speller = AttendAndSpeller(
             rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
+
+        # Measures
         self.loss_fn = SparseCategoricalCrossentrophy(pad_id)
-        self._metrics = SparseCategoricalAccuracy(pad_id)
+        self._metrics = [SparseCategoricalAccuracy(pad_id)]
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
         # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
@@ -367,5 +369,19 @@ class LAS(ModelProto):
         return self._metrics
 
     @staticmethod
-    def get_batching_shape(audio_pad_length: int, token_pad_length: int, num_mel_bins: int):
+    def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int):
+        if token_pad_length is not None:
+            token_pad_length = token_pad_length - 1
         return (([audio_pad_length, num_mel_bins, 3], [token_pad_length]), [token_pad_length])
+
+    @staticmethod
+    def make_example(audio: tf.Tensor, tokens: tf.Tensor) -> Tuple[Tuple[tf.Tensor, tf.Tensor], tf.Tensor]:
+        """
+        Make training example from audio input and token output.
+        Output should be (MODEL_INPUT, Y_TRUE)
+
+        :param audio: input audio tensor
+        :param tokens: target tokens shaped [NumTokens]
+        :returns: return input as output by default
+        """
+        return (audio, tokens[:-1]), tokens[1:]

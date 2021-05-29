@@ -21,7 +21,7 @@ class ModelProto(tf.keras.Model):
         raise NotImplementedError("Should set metrics")
 
     @staticmethod
-    def get_batching_shape(audio_pad_length: int, token_pad_length: int, num_mel_bins: int):
+    def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int):
         """
         Return shapes of padded batch.
 
