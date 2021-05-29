@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 
 from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
 from speech_recognition.models import LAS
-from speech_recognition.search import Searcher
+from speech_recognition.search import LAS_Searcher
 from speech_recognition.utils import get_device_strategy, get_logger, levenshtein_distance
 
 # fmt: off
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             model.load_weights(args.model_path)
             model.summary()
 
-        searcher = Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
+        searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
         logger.info(f"Loaded weights of model from {args.model_path}")
 
         # Inference
