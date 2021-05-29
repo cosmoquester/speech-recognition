@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, Conv2D, Dense
@@ -166,6 +166,8 @@ class DeepSpeech2(ModelProto):
             rnn_type, num_reccurent_layers, hidden_dim, dropout, recurrent_dropout, name="recurrent"
         )
         self.fully_connected = Dense(vocab_size)
+
+        # Measures
         self.loss_fn = CTCLoss(blank_index, pad_index)
 
     def call(self, audio_input):
@@ -179,5 +181,5 @@ class DeepSpeech2(ModelProto):
         return []
 
     @staticmethod
-    def get_batching_shape(audio_pad_length: int, token_pad_length: int, num_mel_bins: int):
+    def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int):
         return ([audio_pad_length, num_mel_bins, 3], [token_pad_length])
