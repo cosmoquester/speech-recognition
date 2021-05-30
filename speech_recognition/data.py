@@ -126,12 +126,12 @@ def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_l
     :param frame_length: window length in samples
     :param frame_step: number of samples to step
     :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
-    :return: spectrogram audio tensor shaped [NumFrame, NumFFTUniqueBins]
+    :return: spectrogram audio tensor shaped [NumFrame, NumFFTUniqueBins, 1]
     """
     # Shape: [NumFrame, NumFFTUniqueBins]
     spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
     spectrogram = tf.abs(spectrogram)
-    return spectrogram
+    return spectrogram[:, :, tf.newaxis]
 
 
 @tf.function
@@ -158,10 +158,11 @@ def make_log_mel_spectrogram(
     :param lower_edge_hertz: lower bound on the frequencies to be included in the mel spectrum
     :param upper_edge_hertz: desired top edge of the highest frequency band
     :param epsilon: added to mel spectrogram before log to prevent nan calculation
-    :return: log mel sectrogram of audio
+    :return: log mel sectrogram of audio tensor shaped [NumFrame, NumMelFilterbank, 1]
     """
     # Shape: [NumFrame, NumFFTUniqueBins]
-    spectrogram = make_spectrogram(audio, frame_length, frame_step, fft_length)
+    spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
+    spectrogram = tf.abs(spectrogram)
 
     num_spectrogram_bins = fft_length // 2 + 1
     # Shape: [NumFFTUniqueBins, NumMelFilterbank]
@@ -172,15 +173,16 @@ def make_log_mel_spectrogram(
     # Sahpe: [NumFrame, NumMelFilterbank]
     mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
     log_mel_spectrogram = tf.math.log(mel_spectrogram + epsilon)
-    return log_mel_spectrogram
+    return log_mel_spectrogram[:, :, tf.newaxis]
 
 
 @tf.function
-def delta_accelerate(audio: tf.Tensor):
+def delta_accelerate(audio: tf.Tensor, text: tf.Tensor):
     """
     Append delta and deltas from audio feature.
 
-    :param: audio: audio data shaped [TimeStep, AudioDim]
+    :param audio: audio data shaped [TimeStep, AudioDim, 1]
+    :param text: text data
     :return: enhanced audio feature shaped [TimeStep, AudioDim, 3]
     """
     zero_head = tf.zeros_like(audio[:1])
@@ -188,5 +190,5 @@ def delta_accelerate(audio: tf.Tensor):
     deltas = delta - tf.concat([zero_head, delta[:-1]], axis=0)
 
     # [TimeStep, AudioDim, 3]
-    audio = tf.stack([audio, delta, deltas], axis=2)
-    return audio
+    audio = tf.concat([audio, delta, deltas], axis=2)
+    return audio, text

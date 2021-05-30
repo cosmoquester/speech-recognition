@@ -18,3 +18,5 @@ upper_edge_hertz: 7600.0
 max_audio_length: 2048
 # Max token sequence length
 max_token_length: 128
+# Use delta and deltas accelerate
+use_delta_accelerate: true

@@ -120,9 +120,13 @@ if __name__ == "__main__":
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # Delta Accelerate
-        delta_accelerate_fn = tf.function(lambda audio, text: (delta_accelerate(audio), text))
-        train_dataset = train_dataset.map(delta_accelerate_fn)
-        dev_dataset = dev_dataset.map(delta_accelerate_fn)
+        if config.use_delta_accelerate:
+            logger.info("[+] Use delta and deltas accelerate")
+            train_dataset = train_dataset.map(delta_accelerate)
+            dev_dataset = dev_dataset.map(delta_accelerate)
+            feature_dim = 3
+        else:
+            feature_dim = 1
 
         # Apply max over policy
         filter_fn = tf.function(
@@ -156,7 +160,7 @@ if __name__ == "__main__":
             model = create_model(OmegaConf.load(f))
 
             model_input, _ = model.make_example(
-                tf.keras.Input([audio_pad_length, config.num_mel_bins, 3], dtype=tf.float32),
+                tf.keras.Input([audio_pad_length, config.num_mel_bins, feature_dim], dtype=tf.float32),
                 tf.keras.Input([token_pad_length], dtype=tf.int32),
             )
             model(model_input)
@@ -192,7 +196,7 @@ if __name__ == "__main__":
 
         # Padded Batch
         logger.info("[+] Pad Input data")
-        padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins)
+        padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins, feature_dim)
         train_dataset = train_dataset.padded_batch(args.batch_size, padded_shape).prefetch(
             tf.data.experimental.AUTOTUNE
         )
