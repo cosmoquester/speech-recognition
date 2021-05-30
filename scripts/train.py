@@ -179,14 +179,12 @@ if __name__ == "__main__":
                     total_steps, args.learning_rate, args.min_learning_rate, args.warmup_rate, args.warmup_steps
                 )
             ),
-            loss=model.loss_fn,
-            metrics=model.metrics,
+            loss=model.get_loss_fn(),
+            metrics=model.get_metrics(),
         )
 
         # Shuffle & Make train example
-        train_dataset = train_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE).shuffle(
-            args.shuffle_buffer_size
-        )
+        train_dataset = train_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dev_dataset = dev_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         if args.steps_per_epoch:
@@ -196,8 +194,10 @@ if __name__ == "__main__":
         # Padded Batch
         logger.info("[+] Pad Input data")
         padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins, feature_dim)
-        train_dataset = train_dataset.padded_batch(args.batch_size, padded_shape).prefetch(
-            tf.data.experimental.AUTOTUNE
+        train_dataset = (
+            train_dataset.shuffle(args.shuffle_buffer_size)
+            .padded_batch(args.batch_size, padded_shape)
+            .prefetch(tf.data.experimental.AUTOTUNE)
         )
         dev_dataset = dev_dataset.padded_batch(args.dev_batch_size, padded_shape)
 

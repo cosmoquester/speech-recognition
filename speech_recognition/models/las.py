@@ -327,16 +327,14 @@ class LAS(ModelProto):
         super(LAS, self).__init__(**kwargs)
 
         self.vocab_size = vocab_size
+        self.pad_id = pad_id
+
         self.listener = Listener(
             rnn_type, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, name="listener"
         )
         self.attend_and_speller = AttendAndSpeller(
             rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
-
-        # Measures
-        self._loss_fn = SparseCategoricalCrossentrophy(pad_id)
-        self._metrics = [SparseCategoricalAccuracy(pad_id)]
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
         # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
@@ -364,13 +362,11 @@ class LAS(ModelProto):
         result = tf.transpose(outputs.stack(), [1, 0, 2])
         return result
 
-    @property
-    def loss_fn(self):
-        return self._loss_fn
+    def get_loss_fn(self):
+        return SparseCategoricalCrossentrophy(self.pad_id)
 
-    @property
-    def metrics(self):
-        return self._metrics
+    def get_metrics(self):
+        return [SparseCategoricalAccuracy(self.pad_id)]
 
     @staticmethod
     def get_batching_shape(

@@ -1,5 +1,5 @@
-from abc import ABCMeta, abstractmethod, abstractproperty, abstractstaticmethod
-from typing import Optional
+from abc import ABCMeta, abstractmethod, abstractstaticmethod
+from typing import Callable, List, Optional
 
 import tensorflow as tf
 
@@ -14,12 +14,12 @@ class ModelProto(tf.keras.Model, metaclass=ABCMeta):
     def call(self, inputs, training: Optional[bool] = None) -> tf.Tensor:
         pass
 
-    @abstractproperty
-    def loss_fn(self) -> tf.Tensor:
+    @abstractmethod
+    def get_loss_fn(self) -> Callable[[tf.Tensor, tf.Tensor], tf.Tensor]:
         pass
 
-    @abstractproperty
-    def metrics(self):
+    @abstractmethod
+    def get_metrics(self) -> List[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
         """Tensorflow metrics for model compile"""
         pass
 
