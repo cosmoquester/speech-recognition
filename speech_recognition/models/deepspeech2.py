@@ -161,6 +161,9 @@ class DeepSpeech2(ModelProto):
     ):
         super(DeepSpeech2, self).__init__(**kwargs)
 
+        self.blank_index = blank_index
+        self.pad_index = pad_index
+
         self.convolution = Convolution(num_conv_layers, channels, filter_sizes, strides, name="convolution")
         self.recurrent = Recurrent(
             rnn_type, num_reccurent_layers, hidden_dim, dropout, recurrent_dropout, name="recurrent"
@@ -176,12 +179,10 @@ class DeepSpeech2(ModelProto):
         output = self.fully_connected(audio)
         return output
 
-    @property
-    def loss_fn(self):
-        return self._loss_fn
+    def get_loss_fn(self):
+        return CTCLoss(self.blank_index, self.pad_index)
 
-    @property
-    def metrics(self):
+    def get_metrics(self):
         return []
 
     @staticmethod

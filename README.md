@@ -6,7 +6,7 @@
 [![cosmoquester](https://circleci.com/gh/cosmoquester/speech-recognition.svg?style=svg)](https://app.circleci.com/pipelines/github/cosmoquester/speech-recognition)
 
 
-- Develope speech recognition models with tensorflow 2
+- Develop speech recognition models with tensorflow 2
 
 # References
 
