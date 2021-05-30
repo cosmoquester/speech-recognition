@@ -13,7 +13,7 @@ def get_dataset(
     file_format: str,
     sample_rate: int,
     tokenizer: text.SentencepieceTokenizer,
-    shuffle: bool,
+    shuffle: bool = False,
     resample: Optional[int] = None,
 ) -> tf.data.Dataset:
     """
