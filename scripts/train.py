@@ -116,7 +116,6 @@ if __name__ == "__main__":
                 config.file_format,
                 config.sample_rate,
                 tokenizer,
-                False,
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # Delta Accelerate
