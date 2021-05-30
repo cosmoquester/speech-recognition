@@ -185,7 +185,9 @@ class DeepSpeech2(ModelProto):
         return []
 
     @staticmethod
-    def get_batching_shape(audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int, feature_dim: int):
+    def get_batching_shape(
+        audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int, feature_dim: int
+    ):
         return ([audio_pad_length, num_mel_bins, feature_dim], [token_pad_length])
 
     @staticmethod
