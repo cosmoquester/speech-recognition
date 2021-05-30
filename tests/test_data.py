@@ -18,9 +18,9 @@ class PseudoTokenizer:
         return tf.strings.unicode_decode(sentence, "UTF8")
 
 
-wav_dataset = get_dataset(WAV_DATASET_PATH, "wav", 22050, PseudoTokenizer)
-pcm_dataset = get_dataset(PCM_DATASET_PATH, "pcm", 22050, PseudoTokenizer)
-mp3_dataset = get_dataset(MP3_DATASET_PATH, "mp3", 22050, PseudoTokenizer)
+wav_dataset = get_dataset(WAV_DATASET_PATH, "wav", 22050, PseudoTokenizer, False)
+pcm_dataset = get_dataset(PCM_DATASET_PATH, "pcm", 22050, PseudoTokenizer, False)
+mp3_dataset = get_dataset(MP3_DATASET_PATH, "mp3", 22050, PseudoTokenizer, False)
 tfrecord_dataset = get_tfrecord_dataset(TFRECORD_DATASET_PATH)
 
 

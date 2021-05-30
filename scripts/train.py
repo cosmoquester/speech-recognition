@@ -17,7 +17,6 @@ from speech_recognition.utils import (
 
 # fmt: off
 parser = argparse.ArgumentParser()
-parser.add_argument("--model-type", type=str, default="las", choices=["las", "ds2"], help="model type 'las' or 'ds2'")
 parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
 parser.add_argument("--model-config-path", type=str, default="resources/configs/las_small.yml", help="model config file")
 parser.add_argument("--sp-model-path", type=str, default=None, help="sentencepiece model path")
@@ -35,13 +34,13 @@ parser.add_argument("--warmup-rate", type=float, default=0.00)
 parser.add_argument("--warmup-steps", type=int)
 parser.add_argument("--batch-size", type=int, default=64)
 parser.add_argument("--dev-batch-size", type=int, default=64)
-parser.add_argument("--shuffle-buffer-size", type=int, default=5000)
+parser.add_argument("--shuffle-buffer-size", type=int, default=5000, help="shuffle buffer size")
 parser.add_argument("--max-over-policy", type=str, choices=["filter", "slice"], help="policy for sequence whose length is over max")
 
 parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord dataset")
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
 parser.add_argument("--validation-freq", type=int, default=10, help="validation frequency (every this epoch)")
-parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="Use mixed precision FP16")
+parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
 parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
 # fmt: on
@@ -108,6 +107,7 @@ if __name__ == "__main__":
                 config.file_format,
                 config.sample_rate,
                 tokenizer,
+                args.shuffle_buffer_size > 1,
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
             logger.info(f"[+] Load dev dataset from {args.dev_dataset_paths}")
@@ -116,6 +116,7 @@ if __name__ == "__main__":
                 config.file_format,
                 config.sample_rate,
                 tokenizer,
+                False,
             ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # Delta Accelerate
@@ -180,8 +181,8 @@ if __name__ == "__main__":
         )
 
         # Shuffle & Make train example
-        train_dataset = train_dataset.shuffle(args.shuffle_buffer_size).map(
-            model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        train_dataset = train_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE).shuffle(
+            args.shuffle_buffer_size
         )
         dev_dataset = dev_dataset.map(model.make_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
