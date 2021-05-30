@@ -43,7 +43,7 @@ def test_get_tfrecord_dataset():
 
     assert len(data) == 2
     assert len(data[0]) == 2
-    tf.debugging.assert_equal(tf.shape(log_mel_spectrogram_sample), [128, 80])
+    tf.debugging.assert_equal(tf.shape(log_mel_spectrogram_sample), [128, 80, 1])
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
 
 
@@ -73,7 +73,7 @@ def test_make_spectrogram(frame_length, frame_step, fft_length):
     if fft_length is None:
         fft_length = frame_length
     tf.debugging.assert_equal(
-        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, fft_length // 2 + 1]
+        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, fft_length // 2 + 1, 1]
     )
 
 
@@ -100,5 +100,5 @@ def test_make_log_mel_spectrogram(
     if fft_length is None:
         fft_length = frame_length
     tf.debugging.assert_equal(
-        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mel_bins]
+        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mel_bins, 1]
     )
