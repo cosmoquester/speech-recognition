@@ -25,3 +25,5 @@ argument_configs.txt
 checkpoint
 *.data-*-of-*
 *.index
+model-config.yml
+data-config.yml
