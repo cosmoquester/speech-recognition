@@ -1,4 +1,5 @@
 import os
+import random
 from functools import partial
 from typing import Optional, Tuple
 
@@ -12,37 +13,53 @@ def get_dataset(
     file_format: str,
     sample_rate: int,
     tokenizer: text.SentencepieceTokenizer,
+    shuffle: bool,
     resample: Optional[int] = None,
 ) -> tf.data.Dataset:
     """
     Load dataset from tsv file. The dataset file has to header.
     The first column has audio file path and second column has recognized sentence.
 
-    :param dataset_paths: dataset file path glob pattern. all dataset files is in same directory.
+    :param dataset_paths: dataset file path glob pattern.
     :param file_format: audio file format. one of ["wav", "flac", "mp3", "pcm"]
     :param sample_rate: audio sample rate
     :param tokenizer: sentencepiece tokenizer
+    :param shuffle: whether shuffle files or not
     :param resample: resample rate (default no resample)
     :return: PCM audio and tokenized sentence dataset
     """
     dataset_list = tf.io.gfile.glob(dataset_paths)
-    dataset = tf.data.experimental.CsvDataset(
-        dataset_list, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
-    )
-    if dataset_list[0].startswith("gs://"):
-        data_dir_path = os.path.dirname(dataset_list[0]) + "/"
-    else:
-        dataset_file_path = os.path.abspath(dataset_list[0])
-        data_dir_path = os.path.dirname(dataset_file_path) + os.sep
+    if shuffle:
+        random.shuffle(dataset_list)
 
-    load_example = tf.function(
-        lambda file_path, text: (
-            load_audio_file(data_dir_path + file_path, sample_rate, file_format, resample),
-            tokenizer.tokenize(text),
+    dataset = tf.data.Dataset.from_tensor_slices(dataset_list)
+
+    def _get_data_dir_path(dataset_path):
+        dataset_path = dataset_path.numpy().decode("utf-8")
+
+        if dataset_path.startswith("gs://"):
+            data_dir_path = os.path.dirname(dataset_path) + "/"
+        else:
+            dataset_file_path = os.path.abspath(dataset_path)
+            data_dir_path = os.path.dirname(dataset_file_path) + os.sep
+        return data_dir_path
+
+    def _to_dataset(dataset_path):
+        data_dir_path = tf.py_function(_get_data_dir_path, [dataset_path], [tf.string])[0]
+
+        load_example = tf.function(
+            lambda file_path, text: (
+                load_audio_file(data_dir_path + file_path, sample_rate, file_format, resample),
+                tokenizer.tokenize(text),
+            )
         )
-    )
+        dataset = tf.data.experimental.CsvDataset(
+            dataset_path, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
+        ).map(load_example)
 
-    return dataset.map(load_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        return dataset
+
+    return dataset.interleave(_to_dataset, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def get_tfrecord_dataset(dataset_paths: str) -> tf.data.Dataset:
@@ -154,8 +171,8 @@ def make_log_mel_spectrogram(
 
     # Sahpe: [NumFrame, NumMelFilterbank]
     mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
-    log_mel_sepctrogram = tf.math.log(mel_spectrogram + epsilon)
-    return log_mel_sepctrogram
+    log_mel_spectrogram = tf.math.log(mel_spectrogram + epsilon)
+    return log_mel_spectrogram
 
 
 @tf.function
