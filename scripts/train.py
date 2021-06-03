@@ -42,6 +42,7 @@ parser.add_argument("--use-tfrecord", action="store_true", help="use tfrecord da
 parser.add_argument("--tensorboard-update-freq", type=int, default=1)
 parser.add_argument("--disable-mixed-precision", action="store_false", dest="mixed_precision", help="use mixed precision FP16")
 parser.add_argument("--seed", type=int, help="Set random seed")
+parser.add_argument("--skip-epochs", type=int, default=0, help="skip first N epochs and start N + 1 epoch")
 parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
 # fmt: on
 
@@ -190,6 +191,10 @@ def main(args: argparse.Namespace):
             logger.info("[+] Repeat dataset")
             train_dataset = train_dataset.repeat()
 
+            if args.skip_epochs:
+                logger.info(f"[+] Skip Dataset by {args.skip_epochs}epoch x {args.steps_per_epoch} steps")
+                train_dataset = train_dataset.skip(args.steps_per_epoch * args.skip_epochs)
+
         # Padded Batch
         logger.info("[+] Pad Input data")
         padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins, feature_dim)
@@ -206,6 +211,7 @@ def main(args: argparse.Namespace):
             train_dataset,
             validation_data=dev_dataset,
             epochs=args.epochs,
+            initial_epoch=args.skip_epochs,
             steps_per_epoch=args.steps_per_epoch,
             callbacks=[
                 tf.keras.callbacks.ModelCheckpoint(
