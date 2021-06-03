@@ -65,7 +65,6 @@ class Convolution(tf.keras.layers.Layer):
         output = tf.reshape(audio_input, [batch_size, sequence_length, audio_input.shape[2] * audio_input.shape[3]])
         return output, mask
 
-    @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
     def _audio_mask(self, audio):
         batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
         mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.AUDIO_PAD_VALUE, axis=2)
@@ -143,6 +142,8 @@ class DeepSpeech2(ModelProto):
         output: `[BatchSize, SequenceLength, VocabSize]`
     """
 
+    model_checkpoint_path = "model-{epoch}epoch-{val_loss:.4f}loss.ckpt"
+
     def __init__(
         self,
         num_conv_layers: int,
@@ -175,7 +176,7 @@ class DeepSpeech2(ModelProto):
 
     def call(self, audio_input):
         audio, mask = self.convolution(audio_input)
-        audio = self.recurrent(audio, mask) * tf.cast(mask[:, :, tf.newaxis], tf.float32)
+        audio = self.recurrent(audio, mask) * tf.cast(mask[:, :, tf.newaxis], audio.dtype)
         output = self.fully_connected(audio)
         return output
 

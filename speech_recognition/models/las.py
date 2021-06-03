@@ -51,7 +51,7 @@ class AdditiveAttention(tf.keras.layers.Layer):
 
         # [BatchSize, 1, SequenceLength]
         weight = tf.matmul(query, key)
-        weight -= 1e9 * (1.0 - tf.cast(tf.expand_dims(attention_mask, axis=1), tf.float32))
+        weight -= 1e9 * (1.0 - tf.cast(tf.expand_dims(attention_mask, axis=1), query.dtype))
         attention_probs = tf.nn.softmax(weight, axis=-1)
 
         # [BatchSize, HiddenDim]
@@ -196,7 +196,6 @@ class Listener(tf.keras.layers.Layer):
             ]
         return [audio, mask] + states
 
-    @tf.function(input_signature=[tf.TensorSpec([None, None, None, None])])
     def _audio_mask(self, audio):
         filter_size = self.filter_sizes[0]
         batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
@@ -312,6 +311,8 @@ class LAS(ModelProto):
             `[BatchSize, VocabSize]`
     """
 
+    model_checkpoint_path = "model-{epoch}epoch-{val_loss:.4f}loss_{val_accuracy:.4f}acc.ckpt"
+
     def __init__(
         self,
         rnn_type: str,
@@ -350,7 +351,7 @@ class LAS(ModelProto):
 
         audio_output, attention_mask, *states = self.listener(audio_input)
         outputs = tf.TensorArray(
-            tf.float32, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
+            audio_output.dtype, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
         )
 
         for i in index_iter:

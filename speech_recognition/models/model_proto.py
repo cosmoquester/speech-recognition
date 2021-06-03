@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod, abstractstaticmethod
+from abc import ABCMeta, abstractmethod, abstractproperty, abstractstaticmethod
 from typing import Callable, List, Optional
 
 import tensorflow as tf
@@ -46,4 +46,9 @@ class ModelProto(tf.keras.Model, metaclass=ABCMeta):
         :param audio: input audio tensor
         :param tokens: target tokens shaped [NumTokens]
         """
+        pass
+
+    @abstractproperty
+    def model_checkpoint_path(self) -> str:
+        """Model Checkpoint Path"""
         pass

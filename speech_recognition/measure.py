@@ -29,7 +29,9 @@ class CTCLoss(tf.keras.losses.Loss):
 
         label_lengths = tf.math.count_nonzero(y_true != self.pad_index, axis=1)
         logit_lengths = tf.fill([batch_size], sequence_length)
-        loss = tf.nn.ctc_loss(y_true, y_pred, label_lengths, logit_lengths, False, blank_index=self.blank_index)
+        loss = tf.nn.ctc_loss(
+            y_true, tf.cast(y_pred, tf.float32), label_lengths, logit_lengths, False, blank_index=self.blank_index
+        )
         loss /= tf.cast(label_lengths, loss.dtype)
         return loss
 

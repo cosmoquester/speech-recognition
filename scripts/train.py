@@ -1,4 +1,5 @@
 import argparse
+import sys
 from math import ceil
 
 import tensorflow as tf
@@ -44,9 +45,8 @@ parser.add_argument("--seed", type=int, help="Set random seed")
 parser.add_argument("--device", type=str, default="CPU", choices=["CPU", "GPU", "TPU"], help="device to use (TPU or GPU or CPU)")
 # fmt: on
 
-if __name__ == "__main__":
-    args = parser.parse_args()
 
+def main(args: argparse.Namespace):
     logger = get_logger("train")
 
     if args.seed:
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         elif args.device == "TPU":
             raise RuntimeError("You should set max-over-sequence-policy with TPU!")
 
-        # Model Initi alize
+        # Model Initialize
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length
         with tf.io.gfile.GFile(args.model_config_path) as f:
@@ -209,11 +209,7 @@ if __name__ == "__main__":
             steps_per_epoch=args.steps_per_epoch,
             callbacks=[
                 tf.keras.callbacks.ModelCheckpoint(
-                    path_join(
-                        args.output_path,
-                        "models",
-                        "model-{epoch}epoch-{loss:.4f}loss_{accuracy:.4f}acc.ckpt",
-                    ),
+                    path_join(args.output_path, "models", model.model_checkpoint_path),
                     save_weights_only=True,
                     verbose=1,
                 ),
@@ -222,3 +218,7 @@ if __name__ == "__main__":
                 ),
             ],
         )
+
+
+if __name__ == "__main__":
+    sys.exit(main(parser.parse_args()))
