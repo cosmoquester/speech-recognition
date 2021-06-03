@@ -217,6 +217,7 @@ class DeepSpeechSearcher:
         self.max_token_length = max_token_length
         self.blank_index = blank_index
 
+    @tf.function
     def greedy_search(self, audio_input: tf.Tensor):
         """
         Generate sentences using decoder by greedy searching.
@@ -245,6 +246,7 @@ class DeepSpeechSearcher:
 
         return tokens, probability
 
+    @tf.function
     def beam_search(self, audio_input: tf.Tensor, beam_size: int):
         """
         Generate sentences using decoder by beam searching.
