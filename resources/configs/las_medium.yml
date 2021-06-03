@@ -14,5 +14,7 @@ num_encoder_layers: 4
 num_decoder_layers: 2
 # Dropout Rate
 dropout: 0.15
+# teacher forcing rate
+teacher_forcing_rate: 0.99
 # Pad Token ID
 pad_id: 0
