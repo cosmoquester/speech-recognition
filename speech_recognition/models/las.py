@@ -297,6 +297,7 @@ class LAS(ModelProto):
         decoder_hidden_dim: Integer, the hidden dimension size of SampleModel decoder.
         num_encoder_layers: Integer, the number of seq2seq encoder.
         num_decoder_layers: Integer, the number of seq2seq decoder.
+        teacher_forcing_rate: Float, the rate of using teacher forcing.
         pad_id: Integer, the id of padding token.
     Call arguments:
         inputs: A tuple (encoder_tokens, decoder_tokens)
@@ -322,6 +323,7 @@ class LAS(ModelProto):
         num_encoder_layers: int,
         num_decoder_layers: int,
         dropout: float,
+        teacher_forcing_rate: float,
         pad_id: int = 0,
         **kwargs,
     ):
@@ -329,6 +331,7 @@ class LAS(ModelProto):
 
         self.vocab_size = vocab_size
         self.pad_id = pad_id
+        self.teacher_forcing_rate = teacher_forcing_rate
 
         self.listener = Listener(
             rnn_type, encoder_hidden_dim, decoder_hidden_dim, num_encoder_layers, dropout, name="listener"
@@ -354,11 +357,16 @@ class LAS(ModelProto):
             audio_output.dtype, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
         )
 
+        use_teacher_forcing = tf.random.uniform((), 0, 1) < self.teacher_forcing_rate
+        decoder_input_t = tf.gather(decoder_input, 0, axis=1)
         for i in index_iter:
-            output, *states = self.attend_and_speller(
-                audio_output, tf.gather(decoder_input, i, axis=1), attention_mask, states
-            )
+            output, *states = self.attend_and_speller(audio_output, decoder_input_t, attention_mask, states)
             outputs = outputs.write(i, output)
+
+            if use_teacher_forcing:
+                decoder_input_t = tf.gather(decoder_input, i + 1, axis=1)
+            else:
+                decoder_input_t = tf.argmax(output, axis=-1, output_type=tf.int32)
 
         result = tf.transpose(outputs.stack(), [1, 0, 2])
         return result
