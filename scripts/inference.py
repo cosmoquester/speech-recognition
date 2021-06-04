@@ -84,11 +84,8 @@ if __name__ == "__main__":
         if config.use_delta_accelerate:
             logger.info("[+] Use delta and deltas accelerate")
             dataset = dataset.map(delta_accelerate)
-            feature_dim = 3
-        else:
-            feature_dim = 1
 
-        dataset = dataset.padded_batch(args.batch_size, [None, config.num_mel_bins, feature_dim]).prefetch(
+        dataset = dataset.padded_batch(args.batch_size, [None, config.num_mel_bins, config.feature_dim]).prefetch(
             tf.data.experimental.AUTOTUNE
         )
 
@@ -98,7 +95,7 @@ if __name__ == "__main__":
             model = create_model(model_config)
 
             model_input, _ = model.make_example(
-                tf.keras.Input([None, config.num_mel_bins, feature_dim], dtype=tf.float32),
+                tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
                 tf.keras.Input([None], dtype=tf.int32),
             )
             model(model_input)

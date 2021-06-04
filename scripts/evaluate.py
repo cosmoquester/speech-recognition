@@ -55,7 +55,7 @@ def main(args: argparse.Namespace):
     logger.info(f"[+] Load Data Config from {args.data_config_path}")
     with tf.io.gfile.GFile(args.data_config_path) as f:
         config = DataConfig(**yaml.load(f, yaml.SafeLoader))
-        feature_dim = 3 if config.use_delta_accelerate else 1
+        config.feature_dim = 3 if config.use_delta_accelerate else 1
 
     with strategy.scope():
         # Construct Dataset
@@ -88,9 +88,6 @@ def main(args: argparse.Namespace):
         if config.use_delta_accelerate:
             logger.info("[+] Use delta and deltas accelerate")
             dataset = dataset.map(delta_accelerate)
-            feature_dim = 3
-        else:
-            feature_dim = 1
 
         # Model Initialize & Load pretrained model
         with tf.io.gfile.GFile(args.model_config_path) as f:
@@ -98,7 +95,7 @@ def main(args: argparse.Namespace):
             model = create_model(model_config)
 
             model_input, _ = model.make_example(
-                tf.keras.Input([None, config.num_mel_bins, feature_dim], dtype=tf.float32),
+                tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
                 tf.keras.Input([None], dtype=tf.int32),
             )
             model(model_input)
@@ -108,7 +105,7 @@ def main(args: argparse.Namespace):
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length
         dataset = dataset.padded_batch(
-            args.batch_size, ([audio_pad_length, config.num_mel_bins, feature_dim], [token_pad_length])
+            args.batch_size, ([audio_pad_length, config.num_mel_bins, config.feature_dim], [token_pad_length])
         )
 
         if isinstance(model, LAS):
