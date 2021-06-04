@@ -5,12 +5,13 @@ from functools import partial
 
 import tensorflow as tf
 import tensorflow_text as text
-from omegaconf import OmegaConf
+import yaml
 
+from speech_recognition.configs import DataConfig
 from speech_recognition.data import delta_accelerate, load_audio_file, make_log_mel_spectrogram
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
-from speech_recognition.utils import create_model, get_device_strategy, get_logger
+from speech_recognition.utils import create_model, get_device_strategy, get_logger, get_model_config
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
@@ -33,9 +34,10 @@ if __name__ == "__main__":
     logger = get_logger("inference")
 
     if args.mixed_precision:
-        policy = tf.keras.mixed_precision.experimental.Policy("mixed_float16")
+        mixed_type = "mixed_bfloat16" if args.device == "TPU" else "mixed_float16"
+        policy = tf.keras.mixed_precision.experimental.Policy(mixed_type)
         tf.keras.mixed_precision.experimental.set_policy(policy)
-        logger.info("Use Mixed Precision FP16")
+        logger.info("[+] Use Mixed Precision FP16")
 
     # Construct Dataset
     with tf.io.gfile.GFile(args.sp_model_path, "rb") as f:
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     # Load Config
     logger.info(f"Load Data Config from {args.data_config_path}")
     with tf.io.gfile.GFile(args.data_config_path) as f:
-        config = OmegaConf.load(f)
+        config = DataConfig(**yaml.load(f, yaml.SafeLoader))
 
     with strategy.scope():
         dataset = (
@@ -76,18 +78,27 @@ if __name__ == "__main__":
                 ),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE,
             )
-            .map(delta_accelerate)
-            .padded_batch(args.batch_size, [None, config.num_mel_bins, 3])
-            .prefetch(tf.data.experimental.AUTOTUNE)
+        )
+
+        # Delta Accelerate
+        if config.use_delta_accelerate:
+            logger.info("[+] Use delta and deltas accelerate")
+            dataset = dataset.map(delta_accelerate)
+            feature_dim = 3
+        else:
+            feature_dim = 1
+
+        dataset = dataset.padded_batch(args.batch_size, [None, config.num_mel_bins, feature_dim]).prefetch(
+            tf.data.experimental.AUTOTUNE
         )
 
         # Model Initialize & Load pretrained model
         with tf.io.gfile.GFile(args.model_config_path) as f:
-            model_config = OmegaConf.load(f)
+            model_config = get_model_config(yaml.load(f, yaml.SafeLoader))
             model = create_model(model_config)
 
             model_input, _ = model.make_example(
-                tf.keras.Input([None, config.num_mel_bins, 3], dtype=tf.float32),
+                tf.keras.Input([None, config.num_mel_bins, feature_dim], dtype=tf.float32),
                 tf.keras.Input([None], dtype=tf.int32),
             )
             model(model_input)

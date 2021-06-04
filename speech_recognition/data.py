@@ -177,7 +177,7 @@ def make_log_mel_spectrogram(
 
 
 @tf.function
-def delta_accelerate(audio: tf.Tensor, text: tf.Tensor):
+def delta_accelerate(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
     """
     Append delta and deltas from audio feature.
 
@@ -191,4 +191,7 @@ def delta_accelerate(audio: tf.Tensor, text: tf.Tensor):
 
     # [TimeStep, AudioDim, 3]
     audio = tf.concat([audio, delta, deltas], axis=2)
+
+    if text is None:
+        return audio
     return audio, text

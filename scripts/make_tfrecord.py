@@ -4,9 +4,10 @@ import os
 
 import tensorflow as tf
 import tensorflow_text as text
-from omegaconf import OmegaConf
+import yaml
 from tqdm import tqdm
 
+from speech_recognition.configs import DataConfig
 from speech_recognition.data import get_dataset, make_log_mel_spectrogram
 from speech_recognition.utils import get_logger
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     # Load Config
     logger.info(f"[+] Load Config From {args.data_config_path}")
     with tf.io.gfile.GFile(args.data_config_path) as f:
-        config = OmegaConf.load(f)
+        config = DataConfig(**yaml.load(f, yaml.SafeLoader))
 
     # Load Sentencepiece model
     logger.info(f"[+] Load Tokenizer From {args.sp_model_path}")

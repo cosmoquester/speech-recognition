@@ -4,14 +4,16 @@ from math import ceil
 
 import tensorflow as tf
 import tensorflow_text as text
-from omegaconf import OmegaConf
+import yaml
 
+from speech_recognition.configs import DataConfig
 from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
 from speech_recognition.utils import (
     LRScheduler,
     create_model,
     get_device_strategy,
     get_logger,
+    get_model_config,
     path_join,
     set_random_seed,
 )
@@ -72,7 +74,7 @@ def main(args: argparse.Namespace):
         # Load Config
         logger.info(f"[+] Load Data Config from {args.data_config_path}")
         with tf.io.gfile.GFile(args.data_config_path) as f:
-            config = OmegaConf.load(f)
+            config = DataConfig(**yaml.load(f, yaml.SafeLoader))
 
         # Construct Dataset
         map_log_mel_spectrogram = tf.function(
@@ -156,7 +158,7 @@ def main(args: argparse.Namespace):
         token_pad_length = None if args.device != "TPU" else config.max_token_length
         with tf.io.gfile.GFile(args.model_config_path) as f:
             logger.info("[+] Model Initialize")
-            model = create_model(OmegaConf.load(f))
+            model = create_model(get_model_config(yaml.load(f, yaml.SafeLoader)))
 
             model_input, _ = model.make_example(
                 tf.keras.Input([audio_pad_length, config.num_mel_bins, feature_dim], dtype=tf.float32),

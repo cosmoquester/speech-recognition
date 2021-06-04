@@ -2,4 +2,5 @@ tensorflow>=2
 tensorflow-io
 tensorflow-text
 tqdm
-omegaconf
+pyyaml
+pydantic

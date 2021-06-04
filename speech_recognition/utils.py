@@ -7,23 +7,61 @@ from typing import Dict, Iterable, Optional, Union
 import numpy as np
 import tensorflow as tf
 
+from .configs import DeepSpeechConfig, LASConfig
 from .models import LAS, DeepSpeech2, ModelProto
 
 
-def create_model(model_config: Dict) -> ModelProto:
+def get_model_config(model_config_dict: Dict) -> Union[DeepSpeechConfig, LASConfig]:
     """
     Create model instance from config.
 
     :param model_config: dictionary contains 'model_name' as ASR name and initialize arguments.
-    :returns: create model instance
+    :returns: model config
     """
-    model_name = model_config.pop("model_name").lower()
+    model_name = model_config_dict.pop("model_name").lower()
 
     if model_name in ["ds2", "deepspeech2"]:
-        return DeepSpeech2(**model_config)
+        return DeepSpeechConfig(**model_config_dict)
     if model_name in ["las"]:
-        return LAS(**model_config)
+        return LASConfig(**model_config_dict)
     raise ValueError(f"Model Name: {model_name} is invalid!")
+
+
+def create_model(model_config: Union[DeepSpeechConfig, LASConfig]) -> ModelProto:
+    """
+    Create model instance from config.
+
+    :param model_config: model config instance
+    :returns: create model instance
+    """
+    if type(model_config) == DeepSpeechConfig:
+        return DeepSpeech2(
+            num_conv_layers=model_config.num_conv_layers,
+            channels=model_config.channels,
+            filter_sizes=model_config.filter_sizes,
+            strides=model_config.strides,
+            rnn_type=model_config.rnn_type,
+            num_reccurent_layers=model_config.num_reccurent_layers,
+            hidden_dim=model_config.hidden_dim,
+            dropout=model_config.dropout,
+            recurrent_dropout=model_config.recurrent_dropout,
+            vocab_size=model_config.vocab_size,
+            blank_index=model_config.blank_index,
+            pad_index=model_config.pad_index,
+        )
+    if type(model_config) == LASConfig:
+        return LAS(
+            rnn_type=model_config.rnn_type,
+            vocab_size=model_config.vocab_size,
+            encoder_hidden_dim=model_config.encoder_hidden_dim,
+            decoder_hidden_dim=model_config.decoder_hidden_dim,
+            num_encoder_layers=model_config.num_encoder_layers,
+            num_decoder_layers=model_config.num_decoder_layers,
+            dropout=model_config.dropout,
+            teacher_forcing_rate=model_config.teacher_forcing_rate,
+            pad_id=model_config.pad_id,
+        )
+    raise ValueError(f"model_config: {type(model_config)} is not valid type!")
 
 
 class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
