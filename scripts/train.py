@@ -125,9 +125,6 @@ def main(args: argparse.Namespace):
             logger.info("[+] Use delta and deltas accelerate")
             train_dataset = train_dataset.map(delta_accelerate)
             dev_dataset = dev_dataset.map(delta_accelerate)
-            feature_dim = 3
-        else:
-            feature_dim = 1
 
         # Apply max over policy
         filter_fn = tf.function(
@@ -161,7 +158,7 @@ def main(args: argparse.Namespace):
             model = create_model(get_model_config(yaml.load(f, yaml.SafeLoader)))
 
             model_input, _ = model.make_example(
-                tf.keras.Input([audio_pad_length, config.num_mel_bins, feature_dim], dtype=tf.float32),
+                tf.keras.Input([audio_pad_length, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
                 tf.keras.Input([token_pad_length], dtype=tf.int32),
             )
             model(model_input)
@@ -199,7 +196,9 @@ def main(args: argparse.Namespace):
 
         # Padded Batch
         logger.info("[+] Pad Input data")
-        padded_shape = model.get_batching_shape(audio_pad_length, token_pad_length, config.num_mel_bins, feature_dim)
+        padded_shape = model.get_batching_shape(
+            audio_pad_length, token_pad_length, config.num_mel_bins, config.feature_dim
+        )
         train_dataset = (
             train_dataset.shuffle(args.shuffle_buffer_size)
             .padded_batch(args.batch_size, padded_shape)

@@ -29,3 +29,7 @@ class DataConfig:
     lower_edge_hertz: Optional[float] = None
     # Largest frequency for mel-spectrogram
     upper_edge_hertz: Optional[float] = None
+
+    @property
+    def feature_dim(self):
+        return 3 if self.use_delta_accelerate else 1
