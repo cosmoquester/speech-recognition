@@ -103,7 +103,7 @@ def main(args: argparse.Namespace):
         if isinstance(model, LAS):
             searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
         elif isinstance(model, DeepSpeech2):
-            searcher = DeepSpeechSearcher(model, config.max_token_length, model_config.blank_index)
+            searcher = DeepSpeechSearcher(model, model_config.blank_index)
         logger.info(f"[+] Loaded weights of model from {args.model_path}")
 
         # Inference
