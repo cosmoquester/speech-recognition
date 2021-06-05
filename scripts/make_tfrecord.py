@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import sys
 
 import tensorflow as tf
 import tensorflow_text as text
@@ -19,8 +20,8 @@ parser.add_argument("--output-dir", type=str, help="output directory path, defau
 parser.add_argument("--sp-model-path", type=str, default="resources/sp-model/sp_model_unigram_16K.model", help="sentencepiece model path")
 # fmt: on
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+
+def main(args: argparse.Namespace):
     logger = get_logger("make-tfrecord")
 
     input_files = glob.glob(args.dataset_paths)
@@ -77,3 +78,7 @@ if __name__ == "__main__":
         writer.write(dataset)
 
     logger.info("[+] Done")
+
+
+if __name__ == "__main__":
+    sys.exit(main(parser.parse_args()))
