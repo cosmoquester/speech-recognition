@@ -188,6 +188,58 @@ def make_log_mel_spectrogram(
     return _wrapper
 
 
+def make_mfcc(
+    sample_rate: int,
+    frame_length: int,
+    frame_step: int,
+    fft_length: int,
+    num_mel_bins: int = 80,
+    num_mfcc: int = 40,
+    lower_edge_hertz: float = 80.0,
+    upper_edge_hertz: float = 7600.0,
+    epsilon: float = 1e-12,
+):
+    """
+    Make function wrapper to convert to dct-2 type mfcc from PCM audio dataset.
+
+    :param sample_rate: sampling rate of audio
+    :param frame_length: window length in samples
+    :param frame_step: number of samples to step
+    :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
+    :param num_mel_bins: how many bands in the resulting mel spectrum
+    :param num_mfcc: the number of mfcc
+    :param lower_edge_hertz: lower bound on the frequencies to be included in the mel spectrum
+    :param upper_edge_hertz: desired top edge of the highest frequency band
+    :param epsilon: added to mel spectrogram before log to prevent nan calculation
+    :return: log mel sectrogram of audio tensor shaped [NumFrame, NumMelFilterbank, 1]
+    """
+
+    @tf.function
+    def _wrapper(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
+        # Shape: [NumFrame, NumFFTUniqueBins]
+        spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
+        spectrogram = tf.abs(spectrogram)
+
+        num_spectrogram_bins = fft_length // 2 + 1
+        # Shape: [NumFFTUniqueBins, NumMelFilterbank]
+        mel_filterbank = tf.signal.linear_to_mel_weight_matrix(
+            num_mel_bins, num_spectrogram_bins, sample_rate, lower_edge_hertz, upper_edge_hertz
+        )
+
+        # Sahpe: [NumFrame, NumMelFilterbank]
+        mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
+        log_mel_spectrogram = tf.math.log(mel_spectrogram + epsilon)
+
+        # Sahpe: [NumFrame, NumMFCC]
+        mfcc = tf.signal.mfccs_from_log_mel_spectrograms(log_mel_spectrogram)[:, :num_mfcc, tf.newaxis]
+
+        if text is None:
+            return mfcc
+        return mfcc, text
+
+    return _wrapper
+
+
 @tf.function
 def delta_accelerate(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
     """
