@@ -15,8 +15,8 @@ from speech_recognition.utils import create_model, get_device_strategy, get_logg
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
-parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
-parser.add_argument("--model-config-path", type=str, required=True, help="model config file")
+parser.add_argument("--data-config", type=str, required=True, help="data processing config file")
+parser.add_argument("--model-config", type=str, required=True, help="model config file")
 parser.add_argument("--audio-files", required=True, help="an audio file or glob pattern of multiple files ex) *.pcm")
 parser.add_argument("--model-path", type=str, required=True, help="pretrained model checkpoint")
 parser.add_argument("--output-path", default="output.tsv", help="output tsv file path to save generated sentences")

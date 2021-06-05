@@ -13,7 +13,7 @@ from speech_recognition.utils import get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser()
-parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
+parser.add_argument("--data-config", type=str, required=True, help="data processing config file")
 parser.add_argument("--dataset-paths", type=str, required=True, help="dataset file path glob pattern")
 parser.add_argument("--output-dir", type=str, help="output directory path, default is input dataset file directoruy")
 parser.add_argument("--sp-model-path", type=str, default="resources/sp-model/sp_model_unigram_16K.model", help="sentencepiece model path")

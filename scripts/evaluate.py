@@ -6,22 +6,16 @@ import tensorflow as tf
 import tensorflow_text as text
 import yaml
 
-from speech_recognition.configs import DataConfig
+from speech_recognition.configs import DataConfig, ModelConfig
 from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
-from speech_recognition.utils import (
-    create_model,
-    get_device_strategy,
-    get_logger,
-    get_model_config,
-    levenshtein_distance,
-)
+from speech_recognition.utils import create_model, get_device_strategy, get_logger, levenshtein_distance
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
-parser.add_argument("--data-config-path", type=str, required=True, help="data processing config file")
-parser.add_argument("--model-config-path", type=str, required=True, help="model config file")
+parser.add_argument("--data-config", type=str, required=True, help="data processing config file")
+parser.add_argument("--model-config", type=str, required=True, help="model config file")
 parser.add_argument("--dataset-paths", required=True, help="a tsv/tfrecord dataset file or multiple files ex) *.tsv")
 parser.add_argument("--model-path", type=str, required=True, help="pretrained model checkpoint")
 parser.add_argument("--sp-model-path", type=str, required=True, help="sentencepiece model path")
@@ -52,10 +46,9 @@ def main(args: argparse.Namespace):
     bos_id, eos_id = tokenizer.tokenize("").numpy().tolist()
 
     # Load Config
-    logger.info(f"[+] Load Data Config from {args.data_config_path}")
-    with tf.io.gfile.GFile(args.data_config_path) as f:
+    logger.info(f"[+] Load Data Config from {args.data_config}")
+    with tf.io.gfile.GFile(args.data_config) as f:
         config = DataConfig(**yaml.load(f, yaml.SafeLoader))
-        config.feature_dim = 3 if config.use_delta_accelerate else 1
 
     with strategy.scope():
         # Construct Dataset
@@ -90,17 +83,16 @@ def main(args: argparse.Namespace):
             dataset = dataset.map(delta_accelerate)
 
         # Model Initialize & Load pretrained model
-        with tf.io.gfile.GFile(args.model_config_path) as f:
-            model_config = get_model_config(yaml.load(f, yaml.SafeLoader))
-            model = create_model(model_config)
+        model_config = ModelConfig.from_yaml(args.model_config)
+        model = create_model(model_config)
 
-            model_input, _ = model.make_example(
-                tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
-                tf.keras.Input([None], dtype=tf.int32),
-            )
-            model(model_input)
-            model.load_weights(args.model_path)
-            model.summary()
+        model_input, _ = model.make_example(
+            tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
+            tf.keras.Input([None], dtype=tf.int32),
+        )
+        model(model_input)
+        model.load_weights(args.model_path)
+        model.summary()
 
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length
