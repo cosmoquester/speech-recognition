@@ -51,10 +51,13 @@ def main(args: argparse.Namespace):
 
     with strategy.scope():
         # Construct Dataset
-        map_log_mel_spectrogram = tf.function(
-            lambda audio, text: (
+        if args.use_tfrecord:
+            logger.info(f"[+] Load TFRecord dataset from {args.dataset_paths}")
+            dataset = get_tfrecord_dataset(args.dataset_paths)
+        else:
+            logger.info(f"[+] Load dataset from {args.dataset_paths}")
+            dataset = get_dataset(args.dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
                 make_log_mel_spectrogram(
-                    audio,
                     config.sample_rate,
                     config.frame_length,
                     config.frame_step,
@@ -63,17 +66,7 @@ def main(args: argparse.Namespace):
                     config.lower_edge_hertz,
                     config.upper_edge_hertz,
                 ),
-                text,
-            )
-        )
-
-        if args.use_tfrecord:
-            logger.info(f"[+] Load TFRecord dataset from {args.dataset_paths}")
-            dataset = get_tfrecord_dataset(args.dataset_paths)
-        else:
-            logger.info(f"[+] Load dataset from {args.dataset_paths}")
-            dataset = get_dataset(args.dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
-                map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
             )
 
         # Delta Accelerate

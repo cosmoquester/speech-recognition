@@ -56,24 +56,16 @@ def main(args: argparse.Namespace):
     with strategy.scope():
         dataset = (
             tf.data.Dataset.from_tensor_slices(dataset_files)
+            .map(load_audio_file(config.sample_rate, config.file_format, config.sample_rate))
             .map(
-                partial(
-                    load_audio_file,
-                    sample_rate=config.sample_rate,
-                    file_format=config.file_format,
-                    resample=config.sample_rate,
-                )
-            )
-            .map(
-                partial(
-                    make_log_mel_spectrogram,
-                    sample_rate=config.sample_rate,
-                    frame_length=config.frame_length,
-                    frame_step=config.frame_step,
-                    fft_length=config.fft_length,
-                    num_mel_bins=config.num_mel_bins,
-                    lower_edge_hertz=config.lower_edge_hertz,
-                    upper_edge_hertz=config.upper_edge_hertz,
+                make_log_mel_spectrogram(
+                    config.sample_rate,
+                    config.frame_length,
+                    config.frame_step,
+                    config.fft_length,
+                    config.num_mel_bins,
+                    config.lower_edge_hertz,
+                    config.upper_edge_hertz,
                 ),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE,
             )

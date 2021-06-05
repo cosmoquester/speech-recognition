@@ -1,7 +1,7 @@
 import os
 import random
 from functools import partial
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import tensorflow as tf
 import tensorflow_io as tfio
@@ -46,12 +46,10 @@ def get_dataset(
 
     def _to_dataset(dataset_path):
         data_dir_path = tf.py_function(_get_data_dir_path, [dataset_path], [tf.string])[0]
+        load_audio_file_fn = load_audio_file(sample_rate, file_format, resample)
 
         load_example = tf.function(
-            lambda file_path, text: (
-                load_audio_file(data_dir_path + file_path, sample_rate, file_format, resample),
-                tokenizer.tokenize(text),
-            )
+            lambda file_path, text: (load_audio_file_fn(data_dir_path + file_path), tokenizer.tokenize(text))
         )
         dataset = tf.data.experimental.CsvDataset(
             dataset_path, [tf.string, tf.string], header=True, field_delim="\t", use_quote_delim=False
@@ -80,10 +78,9 @@ def get_tfrecord_dataset(dataset_paths: str) -> tf.data.Dataset:
     return dataset
 
 
-@tf.function
 def load_audio_file(
-    audio_file_path: tf.Tensor, sample_rate: int, file_format: str, resample: Optional[float] = None
-) -> Tuple[tf.Tensor, tf.Tensor]:
+    sample_rate: int, file_format: str, resample: Optional[float] = None
+) -> Callable[[tf.Tensor], tf.Tensor]:
     """
     Load audio file and tokenize sentence.
 
@@ -93,32 +90,36 @@ def load_audio_file(
     :param resample: resample rate if it needs, else None
     :return: loaded audio tensor shaped [TimeStep]
     """
-    # audio: [TimeStep, NumChannel]
-    if file_format in ["flac", "wav"]:
-        audio_io_tensor = tfio.audio.AudioIOTensor(audio_file_path, tf.int16)
-        audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
-    elif file_format == "pcm":
-        audio_binary = tf.io.read_file(audio_file_path)
-        if tf.strings.length(audio_binary) % 2 == 1:
-            audio_binary += "\x00"
-        audio_int_tensor = tf.io.decode_raw(audio_binary, tf.int16)
-        audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
-    elif file_format == "mp3":
-        audio = tfio.audio.AudioIOTensor(audio_file_path, tf.float32).to_tensor()
-    else:
-        raise ValueError(f"File Format: {file_format} is not valid!")
 
-    # Resample
-    if resample is not None:
-        audio = tfio.audio.resample(audio, sample_rate, resample, name="resampling")
+    @tf.function
+    def _wrapper(audio_file_path: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        # audio: [TimeStep, NumChannel]
+        if file_format in ["flac", "wav"]:
+            audio_io_tensor = tfio.audio.AudioIOTensor(audio_file_path, tf.int16)
+            audio = tf.cast(audio_io_tensor.to_tensor(), tf.float32) / 32768.0
+        elif file_format == "pcm":
+            audio_binary = tf.io.read_file(audio_file_path)
+            if tf.strings.length(audio_binary) % 2 == 1:
+                audio_binary += "\x00"
+            audio_int_tensor = tf.io.decode_raw(audio_binary, tf.int16)
+            audio = tf.cast(audio_int_tensor, tf.float32)[:, tf.newaxis] / 32768.0
+        elif file_format == "mp3":
+            audio = tfio.audio.AudioIOTensor(audio_file_path, tf.float32).to_tensor()
+        else:
+            raise ValueError(f"File Format: {file_format} is not valid!")
 
-    # Reduce Channel
-    audio = tf.reduce_mean(audio, 1)
-    return audio
+        # Resample
+        if resample is not None:
+            audio = tfio.audio.resample(audio, sample_rate, resample, name="resampling")
+
+        # Reduce Channel
+        audio = tf.reduce_mean(audio, 1)
+        return audio
+
+    return _wrapper
 
 
-@tf.function
-def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_length=None) -> tf.Tensor:
+def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_length=None):
     """
     Make spectrogram from PCM audio dataset.
 
@@ -128,15 +129,21 @@ def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_l
     :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
     :return: spectrogram audio tensor shaped [NumFrame, NumFFTUniqueBins, 1]
     """
-    # Shape: [NumFrame, NumFFTUniqueBins]
-    spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
-    spectrogram = tf.abs(spectrogram)
-    return spectrogram[:, :, tf.newaxis]
+
+    @tf.function
+    def _wrapper(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
+        # Shape: [NumFrame, NumFFTUniqueBins]
+        spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
+        spectrogram = tf.abs(spectrogram)[:, :, tf.newaxis]
+
+        if text is None:
+            return spectrogram
+        return spectrogram, text
+
+    return _wrapper
 
 
-@tf.function
 def make_log_mel_spectrogram(
-    audio: tf.Tensor,
     sample_rate: int,
     frame_length: int,
     frame_step: int,
@@ -145,7 +152,7 @@ def make_log_mel_spectrogram(
     lower_edge_hertz: float = 80.0,
     upper_edge_hertz: float = 7600.0,
     epsilon: float = 1e-12,
-) -> tf.Tensor:
+):
     """
     Make log mel spectrogram from PCM audio dataset.
 
@@ -160,20 +167,28 @@ def make_log_mel_spectrogram(
     :param epsilon: added to mel spectrogram before log to prevent nan calculation
     :return: log mel sectrogram of audio tensor shaped [NumFrame, NumMelFilterbank, 1]
     """
-    # Shape: [NumFrame, NumFFTUniqueBins]
-    spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
-    spectrogram = tf.abs(spectrogram)
 
-    num_spectrogram_bins = fft_length // 2 + 1
-    # Shape: [NumFFTUniqueBins, NumMelFilterbank]
-    mel_filterbank = tf.signal.linear_to_mel_weight_matrix(
-        num_mel_bins, num_spectrogram_bins, sample_rate, lower_edge_hertz, upper_edge_hertz
-    )
+    @tf.function
+    def _wrapper(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
+        # Shape: [NumFrame, NumFFTUniqueBins]
+        spectrogram = tf.signal.stft(audio, frame_length, frame_step, fft_length)
+        spectrogram = tf.abs(spectrogram)
 
-    # Sahpe: [NumFrame, NumMelFilterbank]
-    mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
-    log_mel_spectrogram = tf.math.log(mel_spectrogram + epsilon)
-    return log_mel_spectrogram[:, :, tf.newaxis]
+        num_spectrogram_bins = fft_length // 2 + 1
+        # Shape: [NumFFTUniqueBins, NumMelFilterbank]
+        mel_filterbank = tf.signal.linear_to_mel_weight_matrix(
+            num_mel_bins, num_spectrogram_bins, sample_rate, lower_edge_hertz, upper_edge_hertz
+        )
+
+        # Sahpe: [NumFrame, NumMelFilterbank]
+        mel_spectrogram = tf.matmul(tf.square(spectrogram), mel_filterbank)
+        log_mel_spectrogram = tf.math.log(mel_spectrogram + epsilon)[:, :, tf.newaxis]
+
+        if text is None:
+            return log_mel_spectrogram
+        return log_mel_spectrogram, text
+
+    return _wrapper
 
 
 @tf.function
@@ -195,3 +210,29 @@ def delta_accelerate(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
     if text is None:
         return audio
     return audio, text
+
+
+def filter_example(max_audio_length, max_token_length):
+    """Filter examples whose sequence length is over than the max"""
+
+    def _wrapper(dataset):
+        @tf.function
+        def filter_fn(audio, text):
+            return tf.math.logical_and(tf.shape(audio)[0] <= max_audio_length, tf.size(text) <= max_token_length)
+
+        return dataset.filter(filter_fn)
+
+    return _wrapper
+
+
+def slice_example(max_audio_length, max_token_length):
+    """Slice examples whose sequence length is over than the max"""
+
+    def _wrapper(audio, text):
+        @tf.function
+        def slice_fn(audio, text):
+            return audio[:max_audio_length], text[:max_token_length]
+
+        return dataset.map(slice_fn)
+
+    return _wrapper
