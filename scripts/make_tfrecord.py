@@ -27,9 +27,8 @@ if __name__ == "__main__":
     logger.info(f"[+] Number of Dataset Files: {len(input_files)}")
 
     # Load Config
-    logger.info(f"[+] Load Config From {args.data_config_path}")
-    with tf.io.gfile.GFile(args.data_config_path) as f:
-        config = DataConfig(**yaml.load(f, yaml.SafeLoader))
+    logger.info(f"[+] Load Config From {args.data_config}")
+    config = DataConfig.from_yaml(args.data_config)
 
     # Load Sentencepiece model
     logger.info(f"[+] Load Tokenizer From {args.sp_model_path}")

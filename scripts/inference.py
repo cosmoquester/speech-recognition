@@ -50,9 +50,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Load Config
-    logger.info(f"Load Data Config from {args.data_config_path}")
-    with tf.io.gfile.GFile(args.data_config_path) as f:
-        config = DataConfig(**yaml.load(f, yaml.SafeLoader))
+    logger.info(f"Load Data Config from {args.data_config}")
+    config = DataConfig.from_yaml(args.data_config)
 
     with strategy.scope():
         dataset = (
@@ -90,7 +89,7 @@ if __name__ == "__main__":
         )
 
         # Model Initialize & Load pretrained model
-        with tf.io.gfile.GFile(args.model_config_path) as f:
+        with tf.io.gfile.GFile(args.model_config) as f:
             model_config = get_model_config(yaml.load(f, yaml.SafeLoader))
             model = create_model(model_config)
 

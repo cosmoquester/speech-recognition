@@ -47,8 +47,7 @@ def main(args: argparse.Namespace):
 
     # Load Config
     logger.info(f"[+] Load Data Config from {args.data_config}")
-    with tf.io.gfile.GFile(args.data_config) as f:
-        config = DataConfig(**yaml.load(f, yaml.SafeLoader))
+    config = DataConfig.from_yaml(args.data_config)
 
     with strategy.scope():
         # Construct Dataset
