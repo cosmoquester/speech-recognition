@@ -358,15 +358,15 @@ class LAS(ModelProto):
         )
 
         use_teacher_forcing = tf.random.uniform((), 0, 1) < self.teacher_forcing_rate
-        decoder_input_t = tf.gather(decoder_input, 0, axis=1)
+        output = tf.zeros([tf.shape(audio_output)[0], self.vocab_size], dtype=audio_output.dtype)
         for i in index_iter:
-            output, *states = self.attend_and_speller(audio_output, decoder_input_t, attention_mask, states)
-            outputs = outputs.write(i, output)
-
-            if use_teacher_forcing:
-                decoder_input_t = tf.gather(decoder_input, i + 1, axis=1)
+            if use_teacher_forcing or i == 0:
+                decoder_input_t = tf.gather(decoder_input, i, axis=1)
             else:
                 decoder_input_t = tf.argmax(output, axis=-1, output_type=tf.int32)
+
+            output, *states = self.attend_and_speller(audio_output, decoder_input_t, attention_mask, states)
+            outputs = outputs.write(i, output)
 
         result = tf.transpose(outputs.stack(), [1, 0, 2])
         return result

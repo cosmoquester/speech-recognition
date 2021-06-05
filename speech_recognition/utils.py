@@ -57,10 +57,10 @@ class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
         max_learning_rate: float,
         min_learning_rate: float,
         warmup_rate: float = 0.0,
-        warmup_steps: Optional[int] = None,
-        offset_steps: Optional[int] = None,
+        warmup_steps: Optional[int] = 0,
+        offset_steps: Optional[int] = 0,
     ):
-        self.warmup_steps = int(total_steps * warmup_rate) + 1 if warmup_steps is None else warmup_steps
+        self.warmup_steps = int(total_steps * warmup_rate) + 1 if not warmup_steps else warmup_steps
         self.increasing_delta = max_learning_rate / self.warmup_steps
         self.decreasing_delta = (max_learning_rate - min_learning_rate) / (total_steps - self.warmup_steps)
         self.max_learning_rate = tf.cast(max_learning_rate, tf.float32)

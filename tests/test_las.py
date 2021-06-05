@@ -45,11 +45,11 @@ def test_bi_rnn(rnn_type, units, dropout, batch_size, sequence_length, feature_d
 
 
 @pytest.mark.parametrize(
-    "rnn_type,vocab_size,hidden_dim,num_encoder_layers,num_decoder_layers,batch_size,audio_dim,audio_sequence_length,num_tokens",
+    "rnn_type,vocab_size,hidden_dim,num_encoder_layers,num_decoder_layers,dropout,teacher_forcing_rate,batch_size,audio_dim,audio_sequence_length,num_tokens",
     [
-        ("rnn", 12345, 122, 1, 2, 3, 88, 12, 8),
-        ("lstm", 3030, 320, 3, 5, 1, 34, 33, 1),
-        ("gru", 12, 12, 12, 12, 12, 12, 12, 12),
+        ("rnn", 12345, 122, 1, 2, 0.1, 0.234, 3, 88, 12, 8),
+        ("lstm", 3030, 320, 3, 5, 0.234, 0.4, 1, 34, 33, 1),
+        ("gru", 12, 12, 12, 12, 0.4, 0.99, 12, 12, 12, 12),
     ],
 )
 def test_las(
@@ -58,14 +58,24 @@ def test_las(
     hidden_dim,
     num_encoder_layers,
     num_decoder_layers,
+    dropout,
+    teacher_forcing_rate,
     batch_size,
     audio_dim,
     audio_sequence_length,
     num_tokens,
 ):
-    las = LAS(rnn_type, vocab_size, hidden_dim, hidden_dim, num_encoder_layers, num_decoder_layers, 0.1)
+    las = LAS(
+        rnn_type,
+        vocab_size,
+        hidden_dim,
+        hidden_dim,
+        num_encoder_layers,
+        num_decoder_layers,
+        dropout,
+        teacher_forcing_rate,
+    )
     audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim, 3])
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
-
     output = las((audio, tokens))
     tf.debugging.assert_equal(tf.shape(output), [batch_size, num_tokens, vocab_size])
