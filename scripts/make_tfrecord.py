@@ -36,29 +36,9 @@ def main(args: argparse.Namespace):
     with open(args.sp_model_path, "rb") as f:
         tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-    map_log_mel_spectrogram = tf.function(
-        lambda audio, text: (
-            make_log_mel_spectrogram(
-                audio,
-                config.sample_rate,
-                config.frame_length,
-                config.frame_step,
-                config.fft_length,
-                config.num_mel_bins,
-                config.lower_edge_hertz,
-                config.upper_edge_hertz,
-            ),
-            text,
-        )
-    )
     serialize = tf.function(
         lambda audio, text: tf.io.serialize_tensor(
-            tf.stack(
-                [
-                    tf.io.serialize_tensor(audio),
-                    tf.io.serialize_tensor(text),
-                ]
-            )
+            tf.stack([tf.io.serialize_tensor(audio), tf.io.serialize_tensor(text)])
         )
     )
 
@@ -71,7 +51,18 @@ def main(args: argparse.Namespace):
         # Write TFRecordFile
         dataset = (
             get_dataset(file_path, config.file_format, config.sample_rate, tokenizer)
-            .map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .map(
+                make_log_mel_spectrogram(
+                    config.sample_rate,
+                    config.frame_length,
+                    config.frame_step,
+                    config.fft_length,
+                    config.num_mel_bins,
+                    config.lower_edge_hertz,
+                    config.upper_edge_hertz,
+                ),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
             .map(serialize, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         )
         writer = tf.data.experimental.TFRecordWriter(output_path, "GZIP")

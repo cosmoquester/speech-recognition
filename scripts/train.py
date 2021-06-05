@@ -6,7 +6,14 @@ import tensorflow_text as text
 import yaml
 
 from speech_recognition.configs import TrainConfig
-from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
+from speech_recognition.data import (
+    delta_accelerate,
+    filter_example,
+    get_dataset,
+    get_tfrecord_dataset,
+    make_log_mel_spectrogram,
+    slice_example,
+)
 from speech_recognition.utils import (
     LRScheduler,
     create_model,
@@ -72,21 +79,6 @@ def main(cfg: TrainConfig):
             logger.info("[+] Use Mixed Precision FP16")
 
         # Construct Dataset
-        map_log_mel_spectrogram = tf.function(
-            lambda audio, text: (
-                make_log_mel_spectrogram(
-                    audio,
-                    cfg.data_config.sample_rate,
-                    cfg.data_config.frame_length,
-                    cfg.data_config.frame_step,
-                    cfg.data_config.fft_length,
-                    cfg.data_config.num_mel_bins,
-                    cfg.data_config.lower_edge_hertz,
-                    cfg.data_config.upper_edge_hertz,
-                ),
-                text,
-            )
-        )
         if cfg.use_tfrecord:
             logger.info(f"[+] Load TFRecord train dataset from {cfg.train_dataset_paths}")
             train_dataset = get_tfrecord_dataset(cfg.train_dataset_paths)
@@ -97,6 +89,16 @@ def main(cfg: TrainConfig):
             logger.info(f"[+] Load Tokenizer from {cfg.sp_model_path}")
             with tf.io.gfile.GFile(cfg.sp_model_path, "rb") as f:
                 tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
+
+            map_log_mel_spectrogram = make_log_mel_spectrogram(
+                cfg.data_config.sample_rate,
+                cfg.data_config.frame_length,
+                cfg.data_config.frame_step,
+                cfg.data_config.fft_length,
+                cfg.data_config.num_mel_bins,
+                cfg.data_config.lower_edge_hertz,
+                cfg.data_config.upper_edge_hertz,
+            )
 
             logger.info(f"[+] Load train dataset from {cfg.train_dataset_paths}")
             train_dataset = get_dataset(
@@ -122,27 +124,16 @@ def main(cfg: TrainConfig):
             dev_dataset = dev_dataset.map(delta_accelerate)
 
         # Apply max over policy
-        filter_fn = tf.function(
-            lambda audio, text: tf.math.logical_and(
-                tf.shape(audio)[0] <= cfg.data_config.max_audio_length,
-                tf.size(text) <= cfg.data_config.max_token_length,
-            )
-        )
-        slice_fn = tf.function(
-            lambda audio, text: (
-                audio[: cfg.data_config.max_audio_length],
-                text[: cfg.data_config.max_token_length],
-            )
-        )
-
         if cfg.max_over_policy == "filter":
             logger.info("[+] Filter examples whose audio or token length is over than max value")
-            train_dataset = train_dataset.filter(filter_fn)
-            dev_dataset = dev_dataset.filter(filter_fn)
+            filter_fn = filter_example(cfg.data_config.max_audio_length, cfg.data_config.max_token_length)
+            train_dataset = train_dataset.apply(filter_fn)
+            dev_dataset = dev_dataset.apply(filter_fn)
         elif cfg.max_over_policy == "slice":
             logger.info("[+] Slice examples whose audio or token length is over than max value")
-            train_dataset = train_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            dev_dataset = dev_dataset.map(slice_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            slice_fn = slice_example(cfg.data_config.max_audio_length, cfg.data_config.max_token_length)
+            train_dataset = train_dataset.apply(slice_fn)
+            dev_dataset = dev_dataset.apply(slice_fn)
         elif cfg.device == "TPU":
             raise RuntimeError("You should set max-over-sequence-policy with TPU!")
 
@@ -153,7 +144,12 @@ def main(cfg: TrainConfig):
 
             model_input, _ = model.make_example(
                 tf.keras.Input(
-                    [cfg.audio_pad_length, cfg.data_config.num_mel_bins, cfg.data_config.feature_dim], dtype=tf.float32
+                    [
+                        cfg.audio_pad_length,
+                        cfg.data_config.num_mel_bins,
+                        cfg.data_config.feature_dim,
+                    ],
+                    dtype=tf.float32,
                 ),
                 tf.keras.Input([cfg.token_pad_length], dtype=tf.int32),
             )
