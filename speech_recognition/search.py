@@ -212,9 +212,8 @@ class LAS_Searcher:
 class DeepSpeechSearcher:
     """Provide search functions for DeepSpeech2 model"""
 
-    def __init__(self, model: DeepSpeech2, max_token_length: int, blank_index: int):
+    def __init__(self, model: DeepSpeech2, blank_index: int):
         self.model = model
-        self.max_token_length = max_token_length
         self.blank_index = blank_index
 
     @tf.function
@@ -240,8 +239,8 @@ class DeepSpeechSearcher:
         output = tf.transpose(output, [1, 0, 2])
 
         # tokens: [BatchSize, TokenLength], probability: [BatchSize]
-        decoded, neg_sum_logits = tf.nn.ctc_greedy_decoder(output, tf.fill([batch_size], self.max_token_length))
-        tokens = tf.sparse.to_dense(decoded[0])
+        decoded, neg_sum_logits = tf.nn.ctc_greedy_decoder(output, tf.fill([batch_size], tf.shape(output)[0]))
+        tokens = tf.cast(tf.sparse.to_dense(decoded[0]), tf.int32)
         probability = tf.exp(-neg_sum_logits)[:, 0]
 
         return tokens, probability
@@ -272,9 +271,9 @@ class DeepSpeechSearcher:
 
         # tokens: [BatchSize, BeamSize, TokenLength]
         decoded, log_probability = tf.nn.ctc_beam_search_decoder(
-            output, tf.fill([batch_size], self.max_token_length), beam_size
+            output, tf.fill([batch_size], tf.shape(output)[0]), beam_size
         )
-        tokens = tf.stack([tf.sparse.to_dense(d) for d in decoded], axis=1)
+        tokens = tf.stack([tf.sparse.to_dense(tf.cast(d, tf.int32)) for d in decoded], axis=1)
         probability = tf.exp(log_probability)
 
         return tokens, probability
