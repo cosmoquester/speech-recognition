@@ -11,14 +11,13 @@ def test_deepspeech_search():
     batch_size = 8
     encoder_sequence = 300
     encoder_input_dim = 123
-    max_token_length = 17
     model((tf.keras.Input([None, encoder_input_dim, 3], dtype=tf.float32)))
 
     encoder_input = tf.random.uniform(
         (batch_size, encoder_sequence, encoder_input_dim, 3), maxval=100, dtype=tf.float32
     )
 
-    searcher = DeepSpeechSearcher(model, max_token_length, blank_index)
+    searcher = DeepSpeechSearcher(model, blank_index)
     beam_result, beam_neg_sum_logits = searcher.beam_search(encoder_input, 1)
     greedy_result, greedy_neg_sum_logits = searcher.greedy_search(encoder_input)
 
@@ -35,6 +34,7 @@ def test_las_search():
         num_encoder_layers=1,
         num_decoder_layers=1,
         dropout=0.1,
+        teacher_forcing_rate=0.99,
     )
 
     batch_size = 8
