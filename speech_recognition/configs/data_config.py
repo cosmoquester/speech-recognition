@@ -2,6 +2,7 @@ from typing import Optional
 
 import yaml
 from pydantic.dataclasses import dataclass
+from typing_extensions import Literal
 
 
 @dataclass
@@ -9,7 +10,7 @@ class DataConfig:
     """Config for audio data processing or data dependant parameter"""
 
     # File Format ("pcm", "wav", "flac", "mp3")
-    file_format: str
+    file_format: Literal["pcm", "wav", "flac", "mp3"]
     # Audio Sample rate
     sample_rate: int
     # Frame Length for STFT
