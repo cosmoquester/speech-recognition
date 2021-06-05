@@ -90,7 +90,7 @@ def main(args: argparse.Namespace):
             tf.keras.Input([None], dtype=tf.int32),
         )
         model(model_input)
-        model.load_weights(args.model_path)
+        tf.train.Checkpoint(model).restore(args.model_path).expect_partial()
         model.summary()
 
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length

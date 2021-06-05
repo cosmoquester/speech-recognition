@@ -7,11 +7,11 @@ import tensorflow as tf
 import tensorflow_text as text
 import yaml
 
-from speech_recognition.configs import DataConfig
+from speech_recognition.configs import DataConfig, ModelConfig
 from speech_recognition.data import delta_accelerate, load_audio_file, make_log_mel_spectrogram
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
-from speech_recognition.utils import create_model, get_device_strategy, get_logger, get_model_config
+from speech_recognition.utils import create_model, get_device_strategy, get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
@@ -27,8 +27,8 @@ parser.add_argument("--mixed-precision", action="store_true", help="Use mixed pr
 parser.add_argument("--device", type=str, default="CPU", help="device to train model")
 # fmt: on
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+
+def main(args: argparse.Namespace):
     strategy = get_device_strategy(args.device)
 
     logger = get_logger("inference")
@@ -89,17 +89,16 @@ if __name__ == "__main__":
         )
 
         # Model Initialize & Load pretrained model
-        with tf.io.gfile.GFile(args.model_config) as f:
-            model_config = get_model_config(yaml.load(f, yaml.SafeLoader))
-            model = create_model(model_config)
+        model_config = ModelConfig.from_yaml(args.model_config)
+        model = create_model(model_config)
 
-            model_input, _ = model.make_example(
-                tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
-                tf.keras.Input([None], dtype=tf.int32),
-            )
-            model(model_input)
-            model.load_weights(args.model_path)
-            model.summary()
+        model_input, _ = model.make_example(
+            tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
+            tf.keras.Input([None], dtype=tf.int32),
+        )
+        model(model_input)
+        tf.train.Checkpoint(model).restore(args.model_path).expect_partial()
+        model.summary()
 
         if isinstance(model, LAS):
             searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
@@ -129,3 +128,7 @@ if __name__ == "__main__":
             for audio_path, decoded_sentence in zip(dataset_files, outputs):
                 wtr.writerow((audio_path, decoded_sentence))
         logger.info(f"Saved (audio path,decoded sentence) pairs to {args.output_path}")
+
+
+if __name__ == "__main__":
+    sys.exit(main(parser.parse_args()))
