@@ -82,9 +82,8 @@ def load_audio_file(
     sample_rate: int, file_format: str, resample: Optional[float] = None
 ) -> Callable[[tf.Tensor], tf.Tensor]:
     """
-    Load audio file and tokenize sentence.
+    Make function wrapper to load audio file and tokenize sentence.
 
-    :param audio_file_path: string tensor that is audio file path
     :param sample_rate: sample rate of audio
     :param file_format: audio format, one of [flac, wav, pcm, mp3]
     :param resample: resample rate if it needs, else None
@@ -119,11 +118,10 @@ def load_audio_file(
     return _wrapper
 
 
-def make_spectrogram(audio: tf.Tensor, frame_length: int, frame_step: int, fft_length=None):
+def make_spectrogram(frame_length: int, frame_step: int, fft_length=None):
     """
-    Make spectrogram from PCM audio dataset.
+    Make function wrapper to convert to spectrogram from PCM audio dataset.
 
-    :param audio: pcm format audio tensor shaped [TimeStep]
     :param frame_length: window length in samples
     :param frame_step: number of samples to step
     :param fft_length: size of the FFT to apply. By default, uses the smallest power of 2 enclosing frame_length
@@ -154,9 +152,8 @@ def make_log_mel_spectrogram(
     epsilon: float = 1e-12,
 ):
     """
-    Make log mel spectrogram from PCM audio dataset.
+    Make function wrapper to convert to log mel spectrogram from PCM audio dataset.
 
-    :param audio: pcm format audio tensor shaped [TimeStep]
     :param sample_rate: sampling rate of audio
     :param frame_length: window length in samples
     :param frame_step: number of samples to step

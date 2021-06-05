@@ -48,9 +48,7 @@ def test_get_tfrecord_dataset():
 
 
 def test_make_tfrecord_dataset():
-    dataset = wav_dataset.map(
-        lambda audio, text: (make_log_mel_spectrogram(audio, 22050, 1024, 512, 1024, 80, 80.0, 7600.0), text)
-    )
+    dataset = wav_dataset.map(make_log_mel_spectrogram(22050, 1024, 512, 1024, 80, 80.0, 7600.0))
     for data, tf_data in zip(dataset, tfrecord_dataset):
         tf.debugging.assert_equal(data[0], tf_data[0])
         tf.debugging.assert_equal(data[1], tf_data[1])
@@ -67,8 +65,8 @@ def test_make_tfrecord_dataset():
 )
 def test_make_spectrogram(frame_length, frame_step, fft_length):
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
-    dataset = wav_dataset.map(lambda audio, _: make_spectrogram(audio, frame_length, frame_step, fft_length))
-    audio_sample = next(iter(dataset))
+    dataset = wav_dataset.map(make_spectrogram(frame_length, frame_step, fft_length))
+    audio_sample = next(iter(dataset))[0]
 
     if fft_length is None:
         fft_length = frame_length
@@ -91,11 +89,17 @@ def test_make_log_mel_spectrogram(
 ):
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
     dataset = wav_dataset.map(
-        lambda audio, _: make_log_mel_spectrogram(
-            audio, sample_rate, frame_length, frame_step, fft_length, num_mel_bins, lower_edge_hertz, upper_edge_hertz
+        make_log_mel_spectrogram(
+            sample_rate,
+            frame_length,
+            frame_step,
+            fft_length,
+            num_mel_bins,
+            lower_edge_hertz,
+            upper_edge_hertz,
         )
     )
-    audio_sample = next(iter(dataset))
+    audio_sample = next(iter(dataset))[0]
 
     if fft_length is None:
         fft_length = frame_length
