@@ -3,7 +3,13 @@ import os
 import pytest
 import tensorflow as tf
 
-from speech_recognition.data import get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram, make_spectrogram
+from speech_recognition.data import (
+    get_dataset,
+    get_tfrecord_dataset,
+    make_log_mel_spectrogram,
+    make_mfcc,
+    make_spectrogram,
+)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 WAV_DATASET_PATH = os.path.join(DATA_DIR, "wav_dataset.tsv")
@@ -105,4 +111,38 @@ def test_make_log_mel_spectrogram(
         fft_length = frame_length
     tf.debugging.assert_equal(
         tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mel_bins, 1]
+    )
+
+
+@pytest.mark.parametrize(
+    "sample_rate,frame_length,frame_step,fft_length,num_mel_bins,num_mfcc,lower_edge_hertz,upper_edge_hertz",
+    [
+        (22050, 1024, 1024, 1024, 80, 40, 10, 10000),
+        (16000, 128, 64, 256, 123, 33, 12, 88),
+        (32000, 128, 80, 128, 321, 100, 32, 16000),
+        (44100, 512, 512, 256, 333, 333, 333, 3333),
+    ],
+)
+def test_make_mfcc(
+    sample_rate, frame_length, frame_step, fft_length, num_mel_bins, num_mfcc, lower_edge_hertz, upper_edge_hertz
+):
+    audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
+    dataset = wav_dataset.map(
+        make_mfcc(
+            sample_rate,
+            frame_length,
+            frame_step,
+            fft_length,
+            num_mel_bins,
+            num_mfcc,
+            lower_edge_hertz,
+            upper_edge_hertz,
+        )
+    )
+    audio_sample = next(iter(dataset))[0]
+
+    if fft_length is None:
+        fft_length = frame_length
+    tf.debugging.assert_equal(
+        tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mfcc, 1]
     )
