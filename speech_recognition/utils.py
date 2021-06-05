@@ -11,22 +11,6 @@ from .configs import DeepSpeechConfig, LASConfig
 from .models import LAS, DeepSpeech2, ModelProto
 
 
-def get_model_config(model_config_dict: Dict) -> Union[DeepSpeechConfig, LASConfig]:
-    """
-    Create model instance from config.
-
-    :param model_config: dictionary contains 'model_name' as ASR name and initialize arguments.
-    :returns: model config
-    """
-    model_name = model_config_dict.pop("model_name").lower()
-
-    if model_name in ["ds2", "deepspeech2"]:
-        return DeepSpeechConfig(**model_config_dict)
-    if model_name in ["las"]:
-        return LASConfig(**model_config_dict)
-    raise ValueError(f"Model Name: {model_name} is invalid!")
-
-
 def create_model(model_config: Union[DeepSpeechConfig, LASConfig]) -> ModelProto:
     """
     Create model instance from config.
@@ -74,15 +58,17 @@ class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
         min_learning_rate: float,
         warmup_rate: float = 0.0,
         warmup_steps: Optional[int] = None,
+        offset_steps: Optional[int] = None,
     ):
         self.warmup_steps = int(total_steps * warmup_rate) + 1 if warmup_steps is None else warmup_steps
         self.increasing_delta = max_learning_rate / self.warmup_steps
         self.decreasing_delta = (max_learning_rate - min_learning_rate) / (total_steps - self.warmup_steps)
         self.max_learning_rate = tf.cast(max_learning_rate, tf.float32)
         self.min_learning_rate = tf.cast(min_learning_rate, tf.float32)
+        self.offset_steps = offset_steps
 
     def __call__(self, step: Union[int, tf.Tensor]) -> tf.Tensor:
-        step = tf.cast(step, tf.float32)
+        step = tf.cast(step + self.offset_steps, tf.float32)
         lr = tf.minimum(step * self.increasing_delta, self.max_learning_rate - step * self.decreasing_delta)
         return tf.maximum(lr, self.min_learning_rate)
 

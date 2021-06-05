@@ -1,5 +1,6 @@
 from typing import Optional
 
+import yaml
 from pydantic.dataclasses import dataclass
 
 
@@ -33,3 +34,8 @@ class DataConfig:
     @property
     def feature_dim(self):
         return 3 if self.use_delta_accelerate else 1
+
+    @classmethod
+    def from_yaml(cls, file_path) -> "DataConfig":
+        with open(file_path) as f:
+            return cls(**yaml.load(f, yaml.SafeLoader))

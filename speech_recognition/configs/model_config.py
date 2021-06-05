@@ -1,10 +1,32 @@
 from typing import List
 
+import yaml
 from pydantic.dataclasses import dataclass
 
 
+class ModelConfig:
+    @staticmethod
+    def from_yaml(model_config_path: str) -> "ModelConfig":
+        """
+        Load model config file and return ModelConfig instance
+
+        :param model_config_path: model config file path
+        :returns: ModelConfig type instance
+        """
+        with open(model_config_path) as f:
+            model_config_dict = yaml.load(f, yaml.SafeLoader)
+
+        model_name = model_config_dict.pop("model_name").lower()
+
+        if model_name in ["ds2", "deepspeech2"]:
+            return DeepSpeechConfig(**model_config_dict)
+        if model_name in ["las"]:
+            return LASConfig(**model_config_dict)
+        raise ValueError(f"Model Name: {model_name} is invalid!")
+
+
 @dataclass
-class LASConfig:
+class LASConfig(ModelConfig):
     """Config for LAS model initialize"""
 
     # RNN Type: one of ['rnn', 'lstm', 'gru']
@@ -28,7 +50,7 @@ class LASConfig:
 
 
 @dataclass
-class DeepSpeechConfig:
+class DeepSpeechConfig(ModelConfig):
     """Config for DeepSpeech2 model initialize"""
 
     # number of convolution layers

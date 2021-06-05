@@ -21,7 +21,7 @@ venv.bak/
 
 # training outputs
 logs/
-argument_configs.txt
+train_configs.txt
 checkpoint
 *.data-*-of-*
 *.index
