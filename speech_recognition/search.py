@@ -20,7 +20,7 @@ class LAS_Searcher:
         self.eos_id = eos_id
         self.pad_id = pad_id
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def greedy_search(self, audio_input: tf.Tensor) -> tf.Tensor:
         """
         Generate sentences using decoder by greedy searching.
@@ -80,7 +80,7 @@ class LAS_Searcher:
         )
         return decoder_input, perplexity
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def beam_search(
         self,
         audio_input: tf.Tensor,
@@ -216,7 +216,7 @@ class DeepSpeechSearcher:
         self.model = model
         self.blank_index = blank_index
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def greedy_search(self, audio_input: tf.Tensor):
         """
         Generate sentences using decoder by greedy searching.
@@ -245,7 +245,7 @@ class DeepSpeechSearcher:
 
         return tokens, probability
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def beam_search(self, audio_input: tf.Tensor, beam_size: int):
         """
         Generate sentences using decoder by beam searching.
