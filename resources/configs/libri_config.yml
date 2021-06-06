@@ -1,7 +1,7 @@
 # File Format ("pcm", "wav", "flac", "mp3")
 file_format: flac
 # Audio Feature Type ("spectrogram", "log-mel-spectrogram", "mfcc")
-audio_feature_type: mfcc
+audio_feature_type: log-mel-spectrogram
 # Audio Sample rate
 sample_rate: 16000
 # Frame Length for STFT
@@ -23,4 +23,4 @@ max_audio_length: 2048
 # Max token sequence length (only used with max over policy)
 max_token_length: 128
 # Use delta and deltas accelerate
-use_delta_accelerate: false
+use_delta_accelerate: true

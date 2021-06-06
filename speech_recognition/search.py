@@ -65,9 +65,9 @@ class LAS_Searcher:
             [decoder_input, is_ended, log_perplexity, sequence_lengths, states],
             shape_invariants=[
                 tf.TensorSpec([None, None], tf.int32),
-                tf.TensorSpec(is_ended.get_shape(), is_ended.dtype),
-                tf.TensorSpec(log_perplexity.get_shape(), log_perplexity.dtype),
-                tf.TensorSpec(sequence_lengths.get_shape(), sequence_lengths.dtype),
+                tf.TensorSpec([None, None], is_ended.dtype),
+                tf.TensorSpec([None, None], log_perplexity.dtype),
+                tf.TensorSpec([None, None], sequence_lengths.dtype),
                 [
                     tf.TensorSpec([None, None]),
                     tf.TensorSpec([None, None]),
@@ -213,6 +213,10 @@ class DeepSpeechSearcher:
     """Provide search functions for DeepSpeech2 model"""
 
     def __init__(self, model: DeepSpeech2, blank_index: int):
+        """
+        :param model: DeepSpeech2 model instance.
+        :param blank_index: ctc blank index
+        """
         self.model = model
         self.blank_index = blank_index
 

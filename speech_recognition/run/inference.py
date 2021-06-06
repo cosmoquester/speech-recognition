@@ -7,11 +7,11 @@ import tensorflow as tf
 import tensorflow_text as text
 import yaml
 
-from speech_recognition.configs import DataConfig, get_model_config
-from speech_recognition.data import delta_accelerate, load_audio_file
-from speech_recognition.models import LAS, DeepSpeech2
-from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
-from speech_recognition.utils import get_device_strategy, get_logger
+from ..configs import DataConfig, get_model_config
+from ..data import delta_accelerate, load_audio_file
+from ..models import LAS, DeepSpeech2
+from ..search import DeepSpeechSearcher, LAS_Searcher
+from ..utils import get_device_strategy, get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
@@ -79,13 +79,13 @@ def main(args: argparse.Namespace):
         )
         model(model_input)
         tf.train.Checkpoint(model).restore(args.model_path).expect_partial()
+        logger.info(f"Loaded weights of model from {args.model_path}")
         model.summary()
 
         if isinstance(model, LAS):
             searcher = LAS_Searcher(model, config.max_token_length, bos_id, eos_id, model_config.pad_id)
         elif isinstance(model, DeepSpeech2):
-            searcher = DeepSpeechSearcher(model, config.max_token_length, model_config.blank_index)
-        logger.info(f"Loaded weights of model from {args.model_path}")
+            searcher = DeepSpeechSearcher(model, model_config.blank_index)
 
         # Inference
         logger.info("Start Inference")

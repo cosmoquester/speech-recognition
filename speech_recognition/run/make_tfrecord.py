@@ -8,9 +8,9 @@ import tensorflow_text as text
 import yaml
 from tqdm import tqdm
 
-from speech_recognition.configs import DataConfig
-from speech_recognition.data import get_dataset, make_log_mel_spectrogram
-from speech_recognition.utils import get_logger
+from ..configs import DataConfig
+from ..data import get_dataset, make_log_mel_spectrogram
+from ..utils import get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser()
