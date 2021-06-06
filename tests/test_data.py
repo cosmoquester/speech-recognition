@@ -11,11 +11,7 @@ from speech_recognition.data import (
     make_spectrogram,
 )
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-WAV_DATASET_PATH = os.path.join(DATA_DIR, "wav_dataset.tsv")
-PCM_DATASET_PATH = os.path.join(DATA_DIR, "pcm_dataset.tsv")
-MP3_DATASET_PATH = os.path.join(DATA_DIR, "mp3_dataset.tsv")
-TFRECORD_DATASET_PATH = os.path.join(DATA_DIR, "dataset.tfrecord")
+from .const import MP3_DATASET_PATH, PCM_DATASET_PATH, TFRECORD_DATASET_PATH, WAV_DATASET_PATH
 
 
 class PseudoTokenizer:
@@ -49,12 +45,12 @@ def test_get_tfrecord_dataset():
 
     assert len(data) == 2
     assert len(data[0]) == 2
-    tf.debugging.assert_equal(tf.shape(log_mel_spectrogram_sample), [128, 80, 1])
+    tf.debugging.assert_equal(tf.shape(log_mel_spectrogram_sample), [412, 80, 1])
     tf.debugging.assert_equal(tf.shape(token_sample), [22])
 
 
 def test_make_tfrecord_dataset():
-    dataset = wav_dataset.map(make_log_mel_spectrogram(22050, 1024, 512, 1024, 80, 80.0, 7600.0))
+    dataset = wav_dataset.map(make_log_mel_spectrogram(16000, 320, 160, 320, 80, 80.0, 7600.0))
     for data, tf_data in zip(dataset, tfrecord_dataset):
         tf.debugging.assert_equal(data[0], tf_data[0])
         tf.debugging.assert_equal(data[1], tf_data[1])

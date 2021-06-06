@@ -7,11 +7,11 @@ from pydantic import ValidationError
 
 from speech_recognition.configs.data_config import DataConfig
 
-from ..const import RESOURCE_DIR
+from ..const import DEFAULT_LIBRI_CONFIG
 
 
 def test_data_config():
-    with open(os.path.join(RESOURCE_DIR, "configs", "libri_config.yml")) as f:
+    with open(DEFAULT_LIBRI_CONFIG) as f:
         correct_config = yaml.load(f, yaml.SafeLoader)
 
     with pytest.raises(TypeError):
@@ -23,4 +23,4 @@ def test_data_config():
     config = DataConfig(**correct_config)
     assert asdict(config) == correct_config
 
-    assert config.feature_dim == 1
+    assert config.feature_dim == 3

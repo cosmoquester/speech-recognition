@@ -6,16 +6,13 @@ from pydantic import ValidationError
 
 from speech_recognition.configs.train_config import TrainConfig
 
-from ..const import RESOURCE_DIR
+from ..const import DEFAULT_LAS_CONFIG, DEFAULT_LIBRI_CONFIG
 
 
 def test_model_config():
-    data_config_path = os.path.join(RESOURCE_DIR, "configs", "libri_config.yml")
-    model_config_path = os.path.join(RESOURCE_DIR, "configs", "las_small.yml")
-
     correct_train_config = {
-        "data_config": data_config_path,
-        "model_config": model_config_path,
+        "data_config": DEFAULT_LIBRI_CONFIG,
+        "model_config": DEFAULT_LAS_CONFIG,
         "train_dataset_paths": "hi",
         "dev_dataset_paths": "hello",
         "train_dataset_size": 10,
