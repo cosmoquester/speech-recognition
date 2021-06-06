@@ -4,7 +4,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from speech_recognition.configs.model_config import DeepSpeechConfig, LASConfig, ModelConfig
+from speech_recognition.configs.model_config import DeepSpeechConfig, LASConfig, get_model_config
 
 from ..const import RESOURCE_DIR
 
@@ -15,11 +15,9 @@ def test_model_config():
 
     with open(las_config_path) as f:
         correct_las_config = yaml.load(f, yaml.SafeLoader)
-        del correct_las_config["model_name"]
 
     with open(ds_config_path) as f:
         correct_dsconfig = yaml.load(f, yaml.SafeLoader)
-        del correct_dsconfig["model_name"]
 
     with pytest.raises(TypeError):
         LASConfig()
@@ -35,5 +33,5 @@ def test_model_config():
         wrong = {**correct_dsconfig, **{"channels": 55}}
         DeepSpeechConfig(**wrong)
 
-    assert LASConfig(**correct_las_config) == ModelConfig.from_yaml(las_config_path)
-    assert DeepSpeechConfig(**correct_dsconfig) == ModelConfig.from_yaml(ds_config_path)
+    assert LASConfig(**correct_las_config) == get_model_config(las_config_path)
+    assert DeepSpeechConfig(**correct_dsconfig) == get_model_config(ds_config_path)

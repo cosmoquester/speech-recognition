@@ -7,11 +7,11 @@ import tensorflow as tf
 import tensorflow_text as text
 import yaml
 
-from speech_recognition.configs import DataConfig, ModelConfig
+from speech_recognition.configs import DataConfig, get_model_config
 from speech_recognition.data import delta_accelerate, load_audio_file
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
-from speech_recognition.utils import create_model, get_device_strategy, get_logger
+from speech_recognition.utils import get_device_strategy, get_logger
 
 # fmt: off
 parser = argparse.ArgumentParser("This is script to inferece (generate sentence) with seq2seq model")
@@ -70,8 +70,8 @@ def main(args: argparse.Namespace):
         )
 
         # Model Initialize & Load pretrained model
-        model_config = ModelConfig.from_yaml(args.model_config)
-        model = create_model(model_config)
+        model_config = get_model_config(args.model_config)
+        model = model_config.create_model()
 
         model_input, _ = model.make_example(
             tf.keras.Input([None, config.frequency_dim, config.feature_dim], dtype=tf.float32),

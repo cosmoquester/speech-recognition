@@ -8,7 +8,7 @@ from pydantic.dataclasses import dataclass
 from typing_extensions import Literal
 
 from .data_config import DataConfig
-from .model_config import ModelConfig
+from .model_config import ModelConfig, get_model_config
 
 
 @dataclass
@@ -71,7 +71,7 @@ class TrainConfig:
         self.model_config_path = model_config
 
         self.data_config = DataConfig.from_yaml(data_config)
-        self.model_config = ModelConfig.from_yaml(model_config)
+        self.model_config = get_model_config(model_config)
 
     @classmethod
     def from_yaml(cls, file_path):
