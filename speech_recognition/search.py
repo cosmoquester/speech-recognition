@@ -69,8 +69,8 @@ class LAS_Searcher:
                 tf.TensorSpec([None, None], log_perplexity.dtype),
                 tf.TensorSpec([None, None], sequence_lengths.dtype),
                 [
-                    tf.TensorSpec([None, None]),
-                    tf.TensorSpec([None, None]),
+                    tf.TensorSpec([None, None], states[0].dtype),
+                    tf.TensorSpec([None, None], states[1].dtype),
                 ],
             ],
         )
@@ -188,13 +188,13 @@ class LAS_Searcher:
             _body,
             [audio_output, decoder_input, mask, log_perplexity, states],
             shape_invariants=[
-                tf.TensorSpec([None, None, None], tf.float32),
+                tf.TensorSpec([None, None, None], audio_output.dtype),
                 tf.TensorSpec([None, None], tf.int32),
                 tf.TensorSpec([None, None], tf.bool),
-                tf.TensorSpec([None, None]),
+                tf.TensorSpec([None, None], log_perplexity.dtype),
                 [
-                    tf.TensorSpec([None, None]),
-                    tf.TensorSpec([None, None]),
+                    tf.TensorSpec([None, None], states[0].dtype),
+                    tf.TensorSpec([None, None], states[1].dtype),
                 ],
             ],
         )
