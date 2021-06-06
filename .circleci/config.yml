@@ -6,9 +6,8 @@ executors:
     docker:
       - image: circleci/python:3.8
 
-jobs:
-  run-test:
-    executor: python-executor
+commands:
+  install-packages:
     steps:
       - checkout
 
@@ -21,11 +20,28 @@ jobs:
             virtualenv env
             source env/bin/activate
             pip install -r requirements.txt -r requirements-dev.txt
-
       - save_cache:
           key: deps-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
           paths:
             - "env"
+
+jobs:
+  check-linting:
+    executor: python-executor
+    steps:
+      - install-packages
+
+      - run:
+          name: Run black, isort
+          command: |
+            source env/bin/activate
+            black --check speech_recognition tests
+            isort speech_recognition tests
+
+  run-test:
+    executor: python-executor
+    steps:
+      - install-packages
 
       - run:
           name: Run Tests
@@ -39,35 +55,44 @@ jobs:
             source env/bin/activate
             codecov
 
-  check-linting:
+  run-test-train:
     executor: python-executor
     steps:
-      - checkout
-
-      - restore_cache:
-          key: deps-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+      - install-packages
 
       - run:
-          name: Create Virtual Environment and Install Dependencies
+          name: Run Tests Train
           command: |
-            virtualenv env
             source env/bin/activate
-            pip install -r requirements.txt -r requirements-dev.txt
+            pytest -m interferable tests/run/test_train.py
 
-      - save_cache:
-          key: deps-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-          paths:
-            - "env"
+  run-test-evaluate:
+    executor: python-executor
+    steps:
+      - install-packages
 
       - run:
-          name: Run black, isort
+          name: Run Tests Evaluate
           command: |
             source env/bin/activate
-            black --check speech_recognition scripts tests
-            isort speech_recognition scripts tests
+            pytest -m interferable tests/run/test_evaluate.py
+
+  run-test-inference:
+    executor: python-executor
+    steps:
+      - install-packages
+
+      - run:
+          name: Run Tests Inference
+          command: |
+            source env/bin/activate
+            pytest -m interferable tests/run/test_inference.py
 
 workflows:
   main:
     jobs:
       - run-test
+      - run-test-train
+      - run-test-evaluate
+      - run-test-inference
       - check-linting

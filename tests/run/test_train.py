@@ -1,11 +1,11 @@
 import os
+import random
 import tempfile
 
 import pytest
 
 from speech_recognition.configs import TrainConfig
 from speech_recognition.run.train import main, parser
-import random
 
 from ..const import (
     DEFAULT_DS_CONFIG,
@@ -17,6 +17,7 @@ from ..const import (
 )
 
 
+@pytest.mark.interferable
 @pytest.mark.parametrize("use_tfrecord", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
 @pytest.mark.parametrize("model_config_path", [DEFAULT_LAS_CONFIG, DEFAULT_DS_CONFIG])
@@ -61,6 +62,6 @@ def test_train(model_config_path, mixed_precision, use_tfrecord):
         if max_over_policy is not None:
             arguments.extend(["--max-over-policy", max_over_policy])
 
-        assert main(TrainConfig(**vars(parser.parse_args()))) is None
+        assert main(TrainConfig(**vars(parser.parse_args(arguments)))) is None
         assert os.path.exists(os.path.join(tmpdir, "logs", "train"))
         assert os.path.exists(os.path.join(tmpdir, "models", "checkpoint"))

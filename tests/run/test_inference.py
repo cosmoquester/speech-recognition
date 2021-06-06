@@ -18,6 +18,7 @@ from ..const import (
 AUDIO_FILE = os.path.join(TEST_DATA_DIR, "audio_files", "test.flac")
 
 
+@pytest.mark.interferable
 @pytest.mark.parametrize("beam_search", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
 @pytest.mark.parametrize(

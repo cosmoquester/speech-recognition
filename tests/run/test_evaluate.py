@@ -16,6 +16,7 @@ from ..const import (
 )
 
 
+@pytest.mark.interferable
 @pytest.mark.parametrize("use_tfrecord", [False, True])
 @pytest.mark.parametrize("beam_search", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
