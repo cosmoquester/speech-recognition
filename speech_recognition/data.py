@@ -277,7 +277,7 @@ def filter_example(max_audio_length, max_token_length):
 def slice_example(max_audio_length, max_token_length):
     """Slice examples whose sequence length is over than the max"""
 
-    def _wrapper(audio, text):
+    def _wrapper(dataset):
         @tf.function
         def slice_fn(audio, text):
             return audio[:max_audio_length], text[:max_token_length]

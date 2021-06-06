@@ -232,14 +232,16 @@ class DeepSpeechSearcher:
         # tf ctc search functions consider last vocab index as blank
         # [BatchSize, TokenLength, VocabSize + 1]
         output = tf.concat([output, output[:, :, self.blank_index : self.blank_index + 1]], axis=2)
-        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2])
+        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2], dtype=output.dtype)
         output = tf.nn.log_softmax(output + mask)
 
         # [TokenLength, BatchSize, VocabSize + 1]
         output = tf.transpose(output, [1, 0, 2])
 
         # tokens: [BatchSize, TokenLength], probability: [BatchSize]
-        decoded, neg_sum_logits = tf.nn.ctc_greedy_decoder(output, tf.fill([batch_size], tf.shape(output)[0]))
+        decoded, neg_sum_logits = tf.nn.ctc_greedy_decoder(
+            tf.cast(output, tf.float32), tf.fill([batch_size], tf.shape(output)[0])
+        )
         tokens = tf.cast(tf.sparse.to_dense(decoded[0]), tf.int32)
         probability = tf.exp(-neg_sum_logits)[:, 0]
 
@@ -263,7 +265,7 @@ class DeepSpeechSearcher:
         # tf ctc search functions consider last vocab index as blank
         # [BatchSize, TokenLength, VocabSize + 1]
         output = tf.concat([output, output[:, :, self.blank_index : self.blank_index + 1]], axis=2)
-        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2])
+        mask = -1e9 * tf.one_hot([self.blank_index], tf.shape(output)[2], dtype=output.dtype)
         output = tf.nn.log_softmax(output + mask)
 
         # [TokenLength, BatchSize, VocabSize + 1]
@@ -271,7 +273,7 @@ class DeepSpeechSearcher:
 
         # tokens: [BatchSize, BeamSize, TokenLength]
         decoded, log_probability = tf.nn.ctc_beam_search_decoder(
-            output, tf.fill([batch_size], tf.shape(output)[0]), beam_size
+            tf.cast(output, tf.float32), tf.fill([batch_size], tf.shape(output)[0]), beam_size
         )
         tokens = tf.stack([tf.sparse.to_dense(tf.cast(d, tf.int32)) for d in decoded], axis=1)
         probability = tf.exp(log_probability)
