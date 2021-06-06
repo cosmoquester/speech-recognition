@@ -52,6 +52,7 @@ class TrainConfig:
 
     # use tfrecord dataset
     use_tfrecord: bool = False
+    # tensorboard update frequency
     tensorboard_update_freq: int = 1
     # use mixed precision FP16
     mixed_precision: bool = False

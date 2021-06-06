@@ -67,7 +67,9 @@ def main(cfg: TrainConfig):
     tf.io.gfile.makedirs(cfg.output_path)
     with tf.io.gfile.GFile(path_join(cfg.output_path, "train_configs.txt"), "w") as fout:
         for k, v in vars(cfg).items():
-            fout.write(f"{k}: {v}\n")
+            if type(v) in [int, float, str]:
+                fout.write(f"{k:25}: {v}\n")
+                logger.info(f"{k:25}: {v}")
     tf.io.gfile.copy(cfg.data_config_path, path_join(cfg.output_path, "data-config.yml"))
     tf.io.gfile.copy(cfg.model_config_path, path_join(cfg.output_path, "model-config.yml"))
 
@@ -90,16 +92,6 @@ def main(cfg: TrainConfig):
             with tf.io.gfile.GFile(cfg.sp_model_path, "rb") as f:
                 tokenizer = text.SentencepieceTokenizer(f.read(), add_bos=True, add_eos=True)
 
-            map_log_mel_spectrogram = make_log_mel_spectrogram(
-                cfg.data_config.sample_rate,
-                cfg.data_config.frame_length,
-                cfg.data_config.frame_step,
-                cfg.data_config.fft_length,
-                cfg.data_config.num_mel_bins,
-                cfg.data_config.lower_edge_hertz,
-                cfg.data_config.upper_edge_hertz,
-            )
-
             logger.info(f"[+] Load train dataset from {cfg.train_dataset_paths}")
             train_dataset = get_dataset(
                 cfg.train_dataset_paths,
@@ -107,7 +99,7 @@ def main(cfg: TrainConfig):
                 cfg.data_config.sample_rate,
                 tokenizer,
                 cfg.shuffle_buffer_size > 1,
-            ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ).map(cfg.data_config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
             logger.info(f"[+] Load dev dataset from {cfg.dev_dataset_paths}")
             dev_dataset = get_dataset(
@@ -115,7 +107,7 @@ def main(cfg: TrainConfig):
                 cfg.data_config.file_format,
                 cfg.data_config.sample_rate,
                 tokenizer,
-            ).map(map_log_mel_spectrogram, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ).map(cfg.data_config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # Delta Accelerate
         if cfg.data_config.use_delta_accelerate:
@@ -146,7 +138,7 @@ def main(cfg: TrainConfig):
                 tf.keras.Input(
                     [
                         cfg.audio_pad_length,
-                        cfg.data_config.num_mel_bins,
+                        cfg.data_config.frequency_dim,
                         cfg.data_config.feature_dim,
                     ],
                     dtype=tf.float32,
@@ -193,7 +185,7 @@ def main(cfg: TrainConfig):
         # Padded Batch
         logger.info("[+] Pad Input data")
         padded_shape = model.get_batching_shape(
-            cfg.audio_pad_length, cfg.token_pad_length, cfg.data_config.num_mel_bins, cfg.data_config.feature_dim
+            cfg.audio_pad_length, cfg.token_pad_length, cfg.data_config.frequency_dim, cfg.data_config.feature_dim
         )
         train_dataset = (
             train_dataset.shuffle(cfg.shuffle_buffer_size)

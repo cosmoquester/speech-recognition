@@ -25,14 +25,14 @@ class ModelProto(tf.keras.Model, metaclass=ABCMeta):
 
     @abstractstaticmethod
     def get_batching_shape(
-        audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int, feature_dim: int
+        audio_pad_length: Optional[int], token_pad_length: Optional[int], frequency_dim: int, feature_dim: int
     ):
         """
         Return shapes of padded batch.
 
         :param audio_pad_length: audio input length
         :param token_pad_length: target token pad length
-        :param num_mel_bins: number of mel bins
+        :param frequency_dim: feature dimension of frequency
         :param feature_dim: feature dimension of each time and frequency, 3 if use delta accelerate else 1
         """
         pass

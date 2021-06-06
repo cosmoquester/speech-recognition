@@ -4,10 +4,9 @@ import sys
 
 import tensorflow as tf
 import tensorflow_text as text
-import yaml
 
 from speech_recognition.configs import DataConfig, ModelConfig
-from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset, make_log_mel_spectrogram
+from speech_recognition.data import delta_accelerate, get_dataset, get_tfrecord_dataset
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
 from speech_recognition.utils import create_model, get_device_strategy, get_logger, levenshtein_distance
@@ -57,16 +56,7 @@ def main(args: argparse.Namespace):
         else:
             logger.info(f"[+] Load dataset from {args.dataset_paths}")
             dataset = get_dataset(args.dataset_paths, config.file_format, config.sample_rate, tokenizer).map(
-                make_log_mel_spectrogram(
-                    config.sample_rate,
-                    config.frame_length,
-                    config.frame_step,
-                    config.fft_length,
-                    config.num_mel_bins,
-                    config.lower_edge_hertz,
-                    config.upper_edge_hertz,
-                ),
-                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+                config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE
             )
 
         # Delta Accelerate
@@ -79,7 +69,7 @@ def main(args: argparse.Namespace):
         model = create_model(model_config)
 
         model_input, _ = model.make_example(
-            tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
+            tf.keras.Input([None, config.frequency_dim, config.feature_dim], dtype=tf.float32),
             tf.keras.Input([None], dtype=tf.int32),
         )
         model(model_input)
@@ -89,7 +79,7 @@ def main(args: argparse.Namespace):
         audio_pad_length = None if args.device != "TPU" else config.max_audio_length
         token_pad_length = None if args.device != "TPU" else config.max_token_length
         dataset = dataset.padded_batch(
-            args.batch_size, ([audio_pad_length, config.num_mel_bins, config.feature_dim], [token_pad_length])
+            args.batch_size, ([audio_pad_length, config.frequency_dim, config.feature_dim], [token_pad_length])
         )
 
         if isinstance(model, LAS):
