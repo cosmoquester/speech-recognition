@@ -11,43 +11,6 @@ from .configs import DeepSpeechConfig, LASConfig
 from .models import LAS, DeepSpeech2, ModelProto
 
 
-def create_model(model_config: Union[DeepSpeechConfig, LASConfig]) -> ModelProto:
-    """
-    Create model instance from config.
-
-    :param model_config: model config instance
-    :returns: create model instance
-    """
-    if type(model_config) == DeepSpeechConfig:
-        return DeepSpeech2(
-            num_conv_layers=model_config.num_conv_layers,
-            channels=model_config.channels,
-            filter_sizes=model_config.filter_sizes,
-            strides=model_config.strides,
-            rnn_type=model_config.rnn_type,
-            num_reccurent_layers=model_config.num_reccurent_layers,
-            hidden_dim=model_config.hidden_dim,
-            dropout=model_config.dropout,
-            recurrent_dropout=model_config.recurrent_dropout,
-            vocab_size=model_config.vocab_size,
-            blank_index=model_config.blank_index,
-            pad_index=model_config.pad_index,
-        )
-    if type(model_config) == LASConfig:
-        return LAS(
-            rnn_type=model_config.rnn_type,
-            vocab_size=model_config.vocab_size,
-            encoder_hidden_dim=model_config.encoder_hidden_dim,
-            decoder_hidden_dim=model_config.decoder_hidden_dim,
-            num_encoder_layers=model_config.num_encoder_layers,
-            num_decoder_layers=model_config.num_decoder_layers,
-            dropout=model_config.dropout,
-            teacher_forcing_rate=model_config.teacher_forcing_rate,
-            pad_id=model_config.pad_id,
-        )
-    raise ValueError(f"model_config: {type(model_config)} is not valid type!")
-
-
 class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
     """Schedule learning rate linearly from max_learning_rate to min_learning_rate."""
 

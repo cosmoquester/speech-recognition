@@ -6,22 +6,8 @@ import tensorflow_text as text
 import yaml
 
 from speech_recognition.configs import TrainConfig
-from speech_recognition.data import (
-    delta_accelerate,
-    filter_example,
-    get_dataset,
-    get_tfrecord_dataset,
-    make_log_mel_spectrogram,
-    slice_example,
-)
-from speech_recognition.utils import (
-    LRScheduler,
-    create_model,
-    get_device_strategy,
-    get_logger,
-    path_join,
-    set_random_seed,
-)
+from speech_recognition.data import delta_accelerate, filter_example, get_dataset, get_tfrecord_dataset, slice_example
+from speech_recognition.utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
 # fmt: off
 parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
@@ -132,7 +118,7 @@ def main(cfg: TrainConfig):
         # Model Initialize
         with tf.io.gfile.GFile(cfg.model_config_path) as f:
             logger.info("[+] Model Initialize")
-            model = create_model(cfg.model_config)
+            model = cfg.model_config.create_model()
 
             model_input, _ = model.make_example(
                 tf.keras.Input(

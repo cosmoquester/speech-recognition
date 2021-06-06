@@ -1,28 +1,39 @@
-from typing import List
+from abc import ABCMeta, abstractmethod, abstractproperty
+from typing import List, Union
 
 import yaml
 from pydantic.dataclasses import dataclass
 
+from ..models import LAS, DeepSpeech2
 
-class ModelConfig:
-    @staticmethod
-    def from_yaml(model_config_path: str) -> "ModelConfig":
-        """
-        Load model config file and return ModelConfig instance
 
-        :param model_config_path: model config file path
-        :returns: ModelConfig type instance
-        """
-        with open(model_config_path) as f:
-            model_config_dict = yaml.load(f, yaml.SafeLoader)
+class ModelConfig(metaclass=ABCMeta):
+    @abstractmethod
+    def create_model(self):
+        pass
 
-        model_name = model_config_dict.pop("model_name").lower()
+    @abstractproperty
+    def model_name(self):
+        pass
 
-        if model_name in ["ds2", "deepspeech2"]:
-            return DeepSpeechConfig(**model_config_dict)
-        if model_name in ["las"]:
-            return LASConfig(**model_config_dict)
-        raise ValueError(f"Model Name: {model_name} is invalid!")
+
+def get_model_config(model_config_path: str) -> Union["LASConfig", "DeepSpeechConfig"]:
+    """
+    Load model config file and return ModelConfig instance
+
+    :param model_config_path: model config file path
+    :returns: ModelConfig type instance
+    """
+    with open(model_config_path) as f:
+        model_config_dict = yaml.load(f, yaml.SafeLoader)
+
+    model_name = model_config_dict["model_name"].lower()
+
+    if model_name in ["ds2", "deepspeech2"]:
+        return DeepSpeechConfig(**model_config_dict)
+    if model_name in ["las"]:
+        return LASConfig(**model_config_dict)
+    raise ValueError(f"Model Name: {model_name} is invalid!")
 
 
 @dataclass
@@ -47,6 +58,22 @@ class LASConfig(ModelConfig):
     teacher_forcing_rate: float
     # Pad Token ID
     pad_id: int
+
+    # Model name
+    model_name: str = "LAS"
+
+    def create_model(self) -> LAS:
+        return LAS(
+            rnn_type=self.rnn_type,
+            vocab_size=self.vocab_size,
+            encoder_hidden_dim=self.encoder_hidden_dim,
+            decoder_hidden_dim=self.decoder_hidden_dim,
+            num_encoder_layers=self.num_encoder_layers,
+            num_decoder_layers=self.num_decoder_layers,
+            dropout=self.dropout,
+            teacher_forcing_rate=self.teacher_forcing_rate,
+            pad_id=self.pad_id,
+        )
 
 
 @dataclass
@@ -77,3 +104,22 @@ class DeepSpeechConfig(ModelConfig):
     blank_index: int
     # the index of pad token
     pad_index: int
+
+    # Model name
+    model_name: str = "DeepSpeech2"
+
+    def create_model(self) -> DeepSpeech2:
+        return DeepSpeech2(
+            num_conv_layers=self.num_conv_layers,
+            channels=self.channels,
+            filter_sizes=self.filter_sizes,
+            strides=self.strides,
+            rnn_type=self.rnn_type,
+            num_reccurent_layers=self.num_reccurent_layers,
+            hidden_dim=self.hidden_dim,
+            dropout=self.dropout,
+            recurrent_dropout=self.recurrent_dropout,
+            vocab_size=self.vocab_size,
+            blank_index=self.blank_index,
+            pad_index=self.pad_index,
+        )
