@@ -106,9 +106,10 @@ def get_logger(name: str) -> logging.Logger:
     """Return logger for logging"""
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s"))
-    logger.addHandler(handler)
+    if not logger.hasHandlers():
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s"))
+        logger.addHandler(handler)
     return logger
 
 
