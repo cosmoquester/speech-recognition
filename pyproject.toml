@@ -7,6 +7,11 @@ multi_line_output = 3
 line_length = 120
 include_trailing_comma=true
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m \"not interferable\""
+markers = ["interferable: marks tests capable of interfer other tests"]
+
 [tool.pyright]
 reportUnknownVariableType = false
 reportUnknownMemberType = false
