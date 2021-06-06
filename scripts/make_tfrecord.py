@@ -51,18 +51,7 @@ def main(args: argparse.Namespace):
         # Write TFRecordFile
         dataset = (
             get_dataset(file_path, config.file_format, config.sample_rate, tokenizer)
-            .map(
-                make_log_mel_spectrogram(
-                    config.sample_rate,
-                    config.frame_length,
-                    config.frame_step,
-                    config.fft_length,
-                    config.num_mel_bins,
-                    config.lower_edge_hertz,
-                    config.upper_edge_hertz,
-                ),
-                num_parallel_calls=tf.data.experimental.AUTOTUNE,
-            )
+            .map(config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             .map(serialize, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         )
         writer = tf.data.experimental.TFRecordWriter(output_path, "GZIP")

@@ -8,7 +8,7 @@ import tensorflow_text as text
 import yaml
 
 from speech_recognition.configs import DataConfig, ModelConfig
-from speech_recognition.data import delta_accelerate, load_audio_file, make_log_mel_spectrogram
+from speech_recognition.data import delta_accelerate, load_audio_file
 from speech_recognition.models import LAS, DeepSpeech2
 from speech_recognition.search import DeepSpeechSearcher, LAS_Searcher
 from speech_recognition.utils import create_model, get_device_strategy, get_logger
@@ -57,18 +57,7 @@ def main(args: argparse.Namespace):
         dataset = (
             tf.data.Dataset.from_tensor_slices(dataset_files)
             .map(load_audio_file(config.sample_rate, config.file_format, config.sample_rate))
-            .map(
-                make_log_mel_spectrogram(
-                    config.sample_rate,
-                    config.frame_length,
-                    config.frame_step,
-                    config.fft_length,
-                    config.num_mel_bins,
-                    config.lower_edge_hertz,
-                    config.upper_edge_hertz,
-                ),
-                num_parallel_calls=tf.data.experimental.AUTOTUNE,
-            )
+            .map(config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         )
 
         # Delta Accelerate
@@ -76,7 +65,7 @@ def main(args: argparse.Namespace):
             logger.info("[+] Use delta and deltas accelerate")
             dataset = dataset.map(delta_accelerate)
 
-        dataset = dataset.padded_batch(args.batch_size, [None, config.num_mel_bins, config.feature_dim]).prefetch(
+        dataset = dataset.padded_batch(args.batch_size, [None, config.frequency_dim, config.feature_dim]).prefetch(
             tf.data.experimental.AUTOTUNE
         )
 
@@ -85,7 +74,7 @@ def main(args: argparse.Namespace):
         model = create_model(model_config)
 
         model_input, _ = model.make_example(
-            tf.keras.Input([None, config.num_mel_bins, config.feature_dim], dtype=tf.float32),
+            tf.keras.Input([None, config.frequency_dim, config.feature_dim], dtype=tf.float32),
             tf.keras.Input([None], dtype=tf.int32),
         )
         model(model_input)

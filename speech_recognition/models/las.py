@@ -379,11 +379,11 @@ class LAS(ModelProto):
 
     @staticmethod
     def get_batching_shape(
-        audio_pad_length: Optional[int], token_pad_length: Optional[int], num_mel_bins: int, feature_dim: int
+        audio_pad_length: Optional[int], token_pad_length: Optional[int], frequency_dim: int, feature_dim: int
     ):
         if token_pad_length is not None:
             token_pad_length = token_pad_length - 1
-        return (([audio_pad_length, num_mel_bins, feature_dim], [token_pad_length]), [token_pad_length])
+        return (([audio_pad_length, frequency_dim, feature_dim], [token_pad_length]), [token_pad_length])
 
     @staticmethod
     def make_example(audio: tf.Tensor, tokens: tf.Tensor) -> Tuple[Tuple[tf.Tensor, tf.Tensor], tf.Tensor]:

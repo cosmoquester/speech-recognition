@@ -1,5 +1,7 @@
 # File Format ("pcm", "wav", "flac", "mp3")
 file_format: wav
+# Audio Feature Type ("spectrogram", "log-mel-spectrogram", "mfcc")
+audio_feature_type: mfcc
 # Audio Sample rate
 sample_rate: 16000
 # Frame Length for STFT
@@ -10,13 +12,15 @@ frame_step: 160
 fft_length: 320
 # Number of Mel bins for mel-spectrogram
 num_mel_bins: 80
+# Number of mfcc feature
+num_mfcc: 40
 # Lowest frequency for mel-spectrogram
 lower_edge_hertz: 80.0
 # Largest frequency for mel-spectrogram
 upper_edge_hertz: 7600.0
-# Max audio log mel spectrogram sequence length
+# Max audio log mel spectrogram sequence length (only used with max over policy)
 max_audio_length: 2048
-# Max token sequence length
+# Max token sequence length (only used with max over policy)
 max_token_length: 128
 # Use delta and deltas accelerate
 use_delta_accelerate: true
