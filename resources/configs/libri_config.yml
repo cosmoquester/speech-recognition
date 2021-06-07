@@ -24,3 +24,12 @@ max_audio_length: 2048
 max_token_length: 128
 # Use delta and deltas accelerate
 use_delta_accelerate: true
+# SpecAugment Parameters
+spec_augment:
+  enable: false
+  W: null
+  F: 27
+  m_F: 2
+  T: 100
+  p: 1.0
+  m_T: 2
