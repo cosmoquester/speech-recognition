@@ -64,7 +64,7 @@ jobs:
           name: Run Tests Train
           command: |
             source env/bin/activate
-            pytest -s -m interferable tests/run/test_train.py
+            pytest -m interferable tests/run/test_train.py
 
   run-test-evaluate:
     executor: python-executor

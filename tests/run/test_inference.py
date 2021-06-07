@@ -7,12 +7,12 @@ from speech_recognition.run.inference import main, parser
 
 from ..const import (
     DEFAULT_DS_CHECKPOINT,
-    DEFAULT_DS_CONFIG,
     DEFAULT_LAS_CHECKPOINT,
-    DEFAULT_LAS_CONFIG,
     DEFAULT_LIBRI_CONFIG,
     SP_MODEL_LIBRI,
     TEST_DATA_DIR,
+    TEST_DS_CONFIG,
+    TEST_LAS_CONFIG,
 )
 
 AUDIO_FILE = os.path.join(TEST_DATA_DIR, "audio_files", "test.flac")
@@ -21,9 +21,7 @@ AUDIO_FILE = os.path.join(TEST_DATA_DIR, "audio_files", "test.flac")
 @pytest.mark.interferable
 @pytest.mark.parametrize("beam_search", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
-@pytest.mark.parametrize(
-    "model", [(DEFAULT_LAS_CONFIG, DEFAULT_LAS_CHECKPOINT), (DEFAULT_DS_CONFIG, DEFAULT_DS_CHECKPOINT)]
-)
+@pytest.mark.parametrize("model", [(TEST_LAS_CONFIG, DEFAULT_LAS_CHECKPOINT), (TEST_DS_CONFIG, DEFAULT_DS_CHECKPOINT)])
 def test_inference(model, mixed_precision, beam_search):
     model_config_path, model_checkpoint = model
 

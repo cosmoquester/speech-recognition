@@ -6,11 +6,11 @@ from speech_recognition.run.evaluate import main, parser
 
 from ..const import (
     DEFAULT_DS_CHECKPOINT,
-    DEFAULT_DS_CONFIG,
     DEFAULT_LAS_CHECKPOINT,
-    DEFAULT_LAS_CONFIG,
     DEFAULT_LIBRI_CONFIG,
     SP_MODEL_LIBRI,
+    TEST_DS_CONFIG,
+    TEST_LAS_CONFIG,
     TFRECORD_DATASET_PATH,
     WAV_DATASET_PATH,
 )
@@ -20,9 +20,7 @@ from ..const import (
 @pytest.mark.parametrize("use_tfrecord", [False, True])
 @pytest.mark.parametrize("beam_search", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
-@pytest.mark.parametrize(
-    "model", [(DEFAULT_LAS_CONFIG, DEFAULT_LAS_CHECKPOINT), (DEFAULT_DS_CONFIG, DEFAULT_DS_CHECKPOINT)]
-)
+@pytest.mark.parametrize("model", [(TEST_LAS_CONFIG, DEFAULT_LAS_CHECKPOINT), (TEST_DS_CONFIG, DEFAULT_DS_CHECKPOINT)])
 def test_evaluate(model, mixed_precision, beam_search, use_tfrecord):
     model_config_path, model_checkpoint = model
 
