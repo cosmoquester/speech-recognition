@@ -88,8 +88,8 @@ class TrainConfig:
 
     @property
     def total_steps(self):
-        return ceil(self.train_dataset_size / self.batch_size) * self.epochs
+        return (self.steps_per_epoch or ceil(self.train_dataset_size / self.batch_size)) * self.epochs
 
     @property
     def offset_steps(self):
-        return ceil(self.train_dataset_size / self.batch_size) * self.skip_epochs
+        return (self.steps_per_epoch or ceil(self.train_dataset_size / self.batch_size)) * self.skip_epochs
