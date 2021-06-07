@@ -9,6 +9,7 @@ from speech_recognition.data import (
     make_log_mel_spectrogram,
     make_mfcc,
     make_spectrogram,
+    spec_augment,
 )
 
 from .const import MP3_DATASET_PATH, PCM_DATASET_PATH, TFRECORD_DATASET_PATH, WAV_DATASET_PATH
@@ -142,3 +143,21 @@ def test_make_mfcc(
     tf.debugging.assert_equal(
         tf.shape(audio_sample), [(audio_timestep - frame_length + frame_step) // frame_step, num_mfcc, 1]
     )
+
+
+@pytest.mark.parametrize("W,F,m_F,T,p,m_T", [(80, 27, 1, 100, 1.0, 1), (40, 15, 2, 70, 0.2, 2)])
+def test_spec_augment(W, F, m_F, T, p, m_T):
+    num_time = 234
+    num_frequency = 80
+
+    spec_augment_fn = spec_augment(num_frequency, W, F, m_F, T, p, m_T)
+    data = tf.random.uniform([num_time, num_frequency, 1], 0.1, 1.0)
+    augmented = spec_augment_fn(data)
+    is_zero = tf.reduce_all(augmented == 0.0, axis=2)
+    all_zero_freq = tf.math.count_nonzero(tf.reduce_all(is_zero, axis=0))
+    all_zero_time = tf.math.count_nonzero(tf.reduce_all(is_zero, axis=1))
+
+    tf.debugging.assert_less_equal(all_zero_freq, tf.cast(F * m_F, tf.int64))
+    tf.debugging.assert_less_equal(all_zero_time, tf.cast(T * m_T, tf.int64))
+    tf.debugging.assert_equal(data.shape, augmented.shape)
+    tf.debugging.assert_equal(tf.math.reduce_any(data != augmented), True)

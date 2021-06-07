@@ -4,6 +4,7 @@ from functools import partial
 from typing import Callable, Optional, Tuple
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 import tensorflow_io as tfio
 import tensorflow_text as text
 
@@ -236,6 +237,72 @@ def make_mfcc(
         if text is None:
             return mfcc
         return mfcc, text
+
+    return _wrapper
+
+
+def spec_augment(
+    v: int,
+    W: Optional[int] = None,
+    F: Optional[int] = None,
+    m_F: Optional[int] = None,
+    T: Optional[int] = None,
+    p: Optional[float] = None,
+    m_T: Optional[int] = None,
+):
+    """
+    Make function wrapper to apply SpecAugment.
+    The parameter names follow papers augment parameter names.
+    Using time warping, the number of boundary points is different from paper.
+    This function uses 8 point as boundary points because cannot set 6 points.
+
+    :param v: the number of frequency channels (frequency_dim)
+    :param W: time distortion paramter
+    :param F: maximum frequency to be masked
+    :param m_F: applied number of frequncy masking
+    :param T: maximum timestep to be masked
+    :param p: maximum rate of mask timesteps per total timesteps
+    :param m_T: applied number of time masking
+    """
+    use_time_warping = bool(W)
+    use_frequency_masking = all([F, m_F])
+    use_time_masking = all([T, p, m_T])
+
+    # @tf.function
+    def _wrapper(audio: tf.Tensor, text: Optional[tf.Tensor] = None):
+        num_time = tf.shape(audio)[0]
+
+        if use_time_warping:
+            src_loc_time = tf.random.uniform((), W, num_time - W, tf.int32)
+            dst_loc_time = src_loc_time + tf.random.uniform((), -W, W, tf.int32)
+            src_loc = tf.cast(tf.reshape([src_loc_time, v // 2], [1, 1, 2]), tf.float32)
+            dst_loc = tf.cast(tf.reshape([dst_loc_time, v // 2], [1, 1, 2]), tf.float32)
+            audio, _ = tfa.image.sparse_image_warp(audio, src_loc, dst_loc, num_boundary_points=3)
+
+        if use_frequency_masking:
+            for _ in range(m_F):
+                f = tf.random.uniform((), 0, F, tf.int32)
+                f_0 = tf.random.uniform((), 0, v - f, tf.int32)
+                mask = tf.sequence_mask(f_0 + f, v) == tf.sequence_mask(f_0, v)
+                mask = tf.cast(mask, audio.dtype)[tf.newaxis, :, tf.newaxis]
+                audio *= mask
+
+        if use_time_masking:
+            applied_timemask = 0
+            max_maskable_timesteps = tf.cast(tf.cast(num_time, tf.float32) * p, tf.int32)
+            for _ in range(m_T):
+                t = tf.random.uniform((), 0, T, tf.int32)
+                t = tf.math.minimum(t, max_maskable_timesteps - applied_timemask)
+                applied_timemask += t
+                t_0 = tf.random.uniform((), 0, num_time - t, tf.int32)
+
+                mask = tf.sequence_mask(t_0 + t, num_time) == tf.sequence_mask(t_0, num_time)
+                mask = tf.cast(mask, audio.dtype)[:, tf.newaxis, tf.newaxis]
+                audio *= mask
+
+        if text is None:
+            return audio
+        return audio, text
 
     return _wrapper
 
