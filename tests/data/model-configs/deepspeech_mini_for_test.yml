@@ -1,0 +1,28 @@
+# Model Name
+model_name: deepspeech2
+# number of convolution layers
+num_conv_layers: 1
+# number of channel for each layers
+channels: [32]
+# number of filter size for each layers
+filter_sizes:
+  - [41, 11]
+# number of stride for each layers
+strides:
+  - [2, 2]
+# type of rnn, one of ['rnn', 'lstm', 'gru']
+rnn_type: rnn
+# number of reccurent layers
+num_reccurent_layers: 7
+# hidden dimension size of rnn
+hidden_dim: 32
+# dropout rate
+dropout: 0.1
+# reccurent dropout rate
+recurrent_dropout: 0.0
+# size of vocabulary
+vocab_size: 120
+# the index of blank token separating token
+blank_index: 14
+# the index of pad token
+pad_index: 0

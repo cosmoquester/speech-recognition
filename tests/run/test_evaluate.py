@@ -10,7 +10,7 @@ from ..const import (
     DEFAULT_LAS_CHECKPOINT,
     DEFAULT_LAS_CONFIG,
     DEFAULT_LIBRI_CONFIG,
-    SPM_LIBRI_CONFIG,
+    SP_MODEL_LIBRI,
     TFRECORD_DATASET_PATH,
     WAV_DATASET_PATH,
 )
@@ -39,7 +39,7 @@ def test_evaluate(model, mixed_precision, beam_search, use_tfrecord):
             "--output-path",
             tmpfile.name,
             "--sp-model-path",
-            SPM_LIBRI_CONFIG,
+            SP_MODEL_LIBRI,
             "--batch-size",
             "4",
             "--device",

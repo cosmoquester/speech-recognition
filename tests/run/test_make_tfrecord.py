@@ -3,7 +3,7 @@ import tempfile
 
 from speech_recognition.run.make_tfrecord import main, parser
 
-from ..const import DEFAULT_LIBRI_CONFIG, SPM_LIBRI_CONFIG, WAV_DATASET_PATH
+from ..const import DEFAULT_LIBRI_CONFIG, SP_MODEL_LIBRI, WAV_DATASET_PATH
 
 
 def test_make_tfrecord():
@@ -14,7 +14,7 @@ def test_make_tfrecord():
             "--dataset-paths",
             WAV_DATASET_PATH,
             "--sp-model-path",
-            SPM_LIBRI_CONFIG,
+            SP_MODEL_LIBRI,
             "--output-dir",
             tmpdir,
         ]

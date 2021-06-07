@@ -8,21 +8,21 @@ from speech_recognition.configs import TrainConfig
 from speech_recognition.run.train import main, parser
 
 from ..const import (
-    DEFAULT_DS_CONFIG,
-    DEFAULT_LAS_CONFIG,
     DEFAULT_LIBRI_CONFIG,
-    SPM_LIBRI_CONFIG,
+    SP_MODEL_LIBRI,
+    TEST_DS_CONFIG,
+    TEST_LAS_CONFIG,
     TFRECORD_DATASET_PATH,
     WAV_DATASET_PATH,
 )
 
 
 @pytest.mark.interferable
-@pytest.mark.parametrize("use_tfrecord", [False, True])
 @pytest.mark.parametrize("mixed_precision", [False, True])
-@pytest.mark.parametrize("model_config_path", [DEFAULT_LAS_CONFIG, DEFAULT_DS_CONFIG])
-def test_train(model_config_path, mixed_precision, use_tfrecord):
+@pytest.mark.parametrize("model_config_path", [TEST_LAS_CONFIG, TEST_DS_CONFIG])
+def test_train(model_config_path, mixed_precision):
     max_over_policy = random.choice([None, "slice", "filter"])
+    use_tfrecord = random.choice([True, False])
 
     with tempfile.TemporaryDirectory() as tmpdir:
         arguments = [
@@ -31,7 +31,7 @@ def test_train(model_config_path, mixed_precision, use_tfrecord):
             "--model-config",
             model_config_path,
             "--sp-model-path",
-            SPM_LIBRI_CONFIG,
+            SP_MODEL_LIBRI,
             "--train-dataset-paths",
             TFRECORD_DATASET_PATH if use_tfrecord else WAV_DATASET_PATH,
             "--dev-dataset-paths",
@@ -39,17 +39,17 @@ def test_train(model_config_path, mixed_precision, use_tfrecord):
             "--output-path",
             tmpdir,
             "--steps-per-epoch",
-            "3",
-            "--epochs",
             "2",
+            "--epochs",
+            "1",
             "--shuffle-buffer-size",
             "30",
             "--device",
             "CPU",
             "--batch-size",
-            "3",
+            "2",
             "--dev-batch-size",
-            "3",
+            "2",
             "--learning-rate",
             "1e-3",
             "--train-dataset-size",

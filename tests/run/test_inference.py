@@ -11,7 +11,7 @@ from ..const import (
     DEFAULT_LAS_CHECKPOINT,
     DEFAULT_LAS_CONFIG,
     DEFAULT_LIBRI_CONFIG,
-    SPM_LIBRI_CONFIG,
+    SP_MODEL_LIBRI,
     TEST_DATA_DIR,
 )
 
@@ -40,7 +40,7 @@ def test_inference(model, mixed_precision, beam_search):
             "--output-path",
             tmpfile.name,
             "--sp-model-path",
-            SPM_LIBRI_CONFIG,
+            SP_MODEL_LIBRI,
             "--batch-size",
             "4",
             "--device",

@@ -1,0 +1,20 @@
+# Model Name
+model_name: las
+# RNN Type: one of ['rnn', 'lstm', 'gru']
+rnn_type: lstm
+# Vocab Size
+vocab_size: 3000
+# Encoder Hidden Dimension
+encoder_hidden_dim: 16
+# Decoder Hidden Dimension
+decoder_hidden_dim: 16
+# Encoder Layers
+num_encoder_layers: 1
+# Decoder Layers
+num_decoder_layers: 1
+# Dropout Rate
+dropout: 0.15
+# teacher forcing rate
+teacher_forcing_rate: 0.99
+# Pad Token ID
+pad_id: 0
