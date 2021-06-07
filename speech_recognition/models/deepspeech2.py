@@ -171,9 +171,6 @@ class DeepSpeech2(ModelProto):
         )
         self.fully_connected = Dense(vocab_size)
 
-        # Measures
-        self._loss_fn = CTCLoss(blank_index, pad_index)
-
     def call(self, audio_input):
         audio, mask = self.convolution(audio_input)
         audio = self.recurrent(audio, mask) * tf.cast(mask[:, :, tf.newaxis], audio.dtype)

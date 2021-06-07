@@ -4,6 +4,7 @@ import sys
 
 import tensorflow as tf
 import tensorflow_text as text
+from tqdm import tqdm
 
 from ..configs import DataConfig, get_model_config
 from ..data import delta_accelerate, get_dataset, get_tfrecord_dataset
@@ -107,7 +108,7 @@ def main(args: argparse.Namespace):
         # Print metric
         wers = []
         cers = []
-        for pred, target in outputs:
+        for pred, target in tqdm(outputs):
             wers.append(levenshtein_distance(target.split(), pred.split(), True))
             cers.append(levenshtein_distance(target, pred, True))
 

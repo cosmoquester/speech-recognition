@@ -104,6 +104,7 @@ def levenshtein_distance(
 def get_logger(name: str) -> logging.Logger:
     """Return logger for logging"""
     logger = logging.getLogger(name)
+    logger.propagate = False
     logger.setLevel(logging.DEBUG)
     if not logger.hasHandlers():
         handler = logging.StreamHandler(sys.stdout)
