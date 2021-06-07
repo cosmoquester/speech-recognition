@@ -8,6 +8,19 @@ from ..data import make_log_mel_spectrogram, make_mfcc, make_spectrogram
 
 
 @dataclass
+class SpecAugmentConfig:
+    """Parameters for SpecAugment"""
+
+    enable: bool
+    W: Optional[int] = None
+    F: Optional[int] = None
+    m_F: Optional[int] = None
+    T: Optional[int] = None
+    p: Optional[float] = None
+    m_T: Optional[int] = None
+
+
+@dataclass
 class DataConfig:
     """Config for audio data processing or data dependant parameter"""
 
@@ -29,6 +42,8 @@ class DataConfig:
     max_token_length: int
     # Use delta and deltas accelerate
     use_delta_accelerate: bool
+    # SpecAugment Parameters
+    spec_augment: SpecAugmentConfig
     # Number of Mel bins for mel-spectrogram
     num_mel_bins: Optional[int] = None
     # Number of mfcc feature

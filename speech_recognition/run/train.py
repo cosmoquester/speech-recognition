@@ -6,7 +6,7 @@ import tensorflow_text as text
 import yaml
 
 from ..configs import TrainConfig
-from ..data import delta_accelerate, filter_example, get_dataset, get_tfrecord_dataset, slice_example
+from ..data import delta_accelerate, filter_example, get_dataset, get_tfrecord_dataset, slice_example, spec_augment
 from ..utils import LRScheduler, get_device_strategy, get_logger, path_join, set_random_seed
 
 # fmt: off
@@ -94,6 +94,20 @@ def main(cfg: TrainConfig):
                 cfg.data_config.sample_rate,
                 tokenizer,
             ).map(cfg.data_config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        # SpecAugment
+        if cfg.data_config.spec_augment.enable:
+            train_dataset = train_dataset.map(
+                spec_augment(
+                    v=cfg.data_config.frequency_dim,
+                    W=cfg.data_config.spec_augment.W,
+                    F=cfg.data_config.spec_augment.F,
+                    m_F=cfg.data_config.spec_augment.m_F,
+                    T=cfg.data_config.spec_augment.T,
+                    p=cfg.data_config.spec_augment.p,
+                    m_T=cfg.data_config.spec_augment.m_T,
+                )
+            )
 
         # Delta Accelerate
         if cfg.data_config.use_delta_accelerate:
