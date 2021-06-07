@@ -2,4 +2,5 @@ black
 isort
 pytest
 pytest-cov
+pytest-xdist
 codecov

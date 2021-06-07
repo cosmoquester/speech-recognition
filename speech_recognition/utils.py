@@ -7,9 +7,6 @@ from typing import Dict, Iterable, Optional, Union
 import numpy as np
 import tensorflow as tf
 
-from .configs import DeepSpeechConfig, LASConfig
-from .models import LAS, DeepSpeech2, ModelProto
-
 
 class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
     """Schedule learning rate linearly from max_learning_rate to min_learning_rate."""

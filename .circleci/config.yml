@@ -64,7 +64,7 @@ jobs:
           name: Run Tests Train
           command: |
             source env/bin/activate
-            pytest -m interferable tests/run/test_train.py
+            pytest -m interferable -n 2 --boxed tests/run/test_train.py
 
   run-test-evaluate:
     executor: python-executor
@@ -75,7 +75,7 @@ jobs:
           name: Run Tests Evaluate
           command: |
             source env/bin/activate
-            pytest -m interferable tests/run/test_evaluate.py
+            pytest -m interferable -n 2 --boxed tests/run/test_evaluate.py
 
   run-test-inference:
     executor: python-executor
@@ -86,7 +86,7 @@ jobs:
           name: Run Tests Inference
           command: |
             source env/bin/activate
-            pytest -m interferable tests/run/test_inference.py
+            pytest -m interferable -n 2 --boxed tests/run/test_inference.py
 
 workflows:
   main:
