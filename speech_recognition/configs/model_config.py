@@ -85,7 +85,7 @@ class DeepSpeechConfig(ModelConfig):
     # number of channel for each layers
     channels: List[int]
     # number of filter size for each layers
-    filter_sizes: List[List[int]]
+    kernel_sizes: List[List[int]]
     # number of stride for each layers
     strides: List[List[int]]
     # type of rnn, one of ['rnn', 'lstm', 'gru']
@@ -112,7 +112,7 @@ class DeepSpeechConfig(ModelConfig):
         return DeepSpeech2(
             num_conv_layers=self.num_conv_layers,
             channels=self.channels,
-            filter_sizes=self.filter_sizes,
+            kernel_sizes=self.kernel_sizes,
             strides=self.strides,
             rnn_type=self.rnn_type,
             num_reccurent_layers=self.num_reccurent_layers,

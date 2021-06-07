@@ -15,7 +15,7 @@ class Convolution(tf.keras.layers.Layer):
     Arguments:
         num_layers: Integer, the number of convolution layers.
         channels: Integer, the number of channel for each layers.
-        filter_sizes: Integer, the number of filter size for each layers.
+        kernel_sizes: Integer, the number of filter size for each layers.
         strides: Integer, the number of stride for each layers.
 
     Call arguments:
@@ -32,21 +32,21 @@ class Convolution(tf.keras.layers.Layer):
         self,
         num_layers: int,
         channels: List[int],
-        filter_sizes: List[List[int]],
+        kernel_sizes: List[List[int]],
         strides: List[List[int]],
         **kwargs,
     ):
         super(Convolution, self).__init__(**kwargs)
 
         assert (
-            num_layers == len(channels) == len(filter_sizes) == len(strides)
+            num_layers == len(channels) == len(kernel_sizes) == len(strides)
         ), f"Convolution parameter number is invalid!"
 
-        self.filter_sizes = filter_sizes
+        self.kernel_sizes = kernel_sizes
         self.strides = strides
         self.conv_layers = [
-            Conv2D(channel, filter_size, stride, name=f"conv{i}")
-            for i, (channel, filter_size, stride) in enumerate(zip(channels, filter_sizes, strides))
+            Conv2D(channel, kernel_size, stride, name=f"conv{i}")
+            for i, (channel, kernel_size, stride) in enumerate(zip(channels, kernel_sizes, strides))
         ]
         self.AUDIO_PAD_VALUE = 0.0
 
@@ -68,8 +68,8 @@ class Convolution(tf.keras.layers.Layer):
     def _audio_mask(self, audio):
         batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
         mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.AUDIO_PAD_VALUE, axis=2)
-        for (time_filter_size, _), (time_stride, _) in zip(self.filter_sizes, self.strides):
-            sequence_length -= time_filter_size - time_stride
+        for (time_kernel_size, _), (time_stride, _) in zip(self.kernel_sizes, self.strides):
+            sequence_length -= time_kernel_size - time_stride
             sequence_length = sequence_length // time_stride
         stride_complex = tf.reduce_prod([time_stride, _ in self.strides])
 
@@ -126,7 +126,7 @@ class DeepSpeech2(ModelProto):
     Arguments:
         num_conv_layers: Integer, the number of convolution layers.
         channels: Integer, the number of channel for each layers.
-        filter_sizes: Integer, the number of filter size for each layers.
+        kernel_sizes: Integer, the number of filter size for each layers.
         strides: Integer, the number of stride for each layers.
         rnn_type: String, the type of rnn. one of ['rnn', 'lstm', 'gru'].
         num_reccurent_layers: Integer, the number of reccurent layers.
@@ -148,7 +148,7 @@ class DeepSpeech2(ModelProto):
         self,
         num_conv_layers: int,
         channels: List[int],
-        filter_sizes: List[List[int]],
+        kernel_sizes: List[List[int]],
         strides: List[List[int]],
         rnn_type: str,
         num_reccurent_layers: int,
@@ -165,7 +165,7 @@ class DeepSpeech2(ModelProto):
         self.blank_index = blank_index
         self.pad_index = pad_index
 
-        self.convolution = Convolution(num_conv_layers, channels, filter_sizes, strides, name="convolution")
+        self.convolution = Convolution(num_conv_layers, channels, kernel_sizes, strides, name="convolution")
         self.recurrent = Recurrent(
             rnn_type, num_reccurent_layers, hidden_dim, dropout, recurrent_dropout, name="recurrent"
         )

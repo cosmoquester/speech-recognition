@@ -5,7 +5,7 @@ from speech_recognition.models.deepspeech2 import Convolution, DeepSpeech2, Recu
 
 
 @pytest.mark.parametrize(
-    "num_layers,channels,filter_sizes,strides,batch_size,sequence_length,frequency_bins,feature_dim",
+    "num_layers,channels,kernel_sizes,strides,batch_size,sequence_length,frequency_bins,feature_dim",
     [
         (1, [32], [[41, 11]], [[2, 2]], 7, 111, 33, 1),
         (2, [32, 32], [[41, 11], [21, 11]], [[2, 2], [2, 1]], 12, 333, 45, 2),
@@ -14,9 +14,9 @@ from speech_recognition.models.deepspeech2 import Convolution, DeepSpeech2, Recu
     ],
 )
 def test_convolution(
-    num_layers, channels, filter_sizes, strides, batch_size, sequence_length, frequency_bins, feature_dim
+    num_layers, channels, kernel_sizes, strides, batch_size, sequence_length, frequency_bins, feature_dim
 ):
-    convolution = Convolution(num_layers, channels, filter_sizes, strides)
+    convolution = Convolution(num_layers, channels, kernel_sizes, strides)
 
     audio = tf.random.normal([batch_size, sequence_length, frequency_bins, feature_dim])
     output, mask = convolution(audio)
@@ -58,7 +58,7 @@ def test_recurrent(
 
 # fmt: off
 @pytest.mark.parametrize(
-    "num_conv_layers,channels,filter_sizes,strides,rnn_type,num_reccurent_layers,hidden_dim,dropout,vocab_size,batch_size,sequence_length,freq_bins,feature_dim",
+    "num_conv_layers,channels,kernel_sizes,strides,rnn_type,num_reccurent_layers,hidden_dim,dropout,vocab_size,batch_size,sequence_length,freq_bins,feature_dim",
     [
         (1, [32], [[41, 11]], [[2, 2]], "rnn", 1, 240, 0.1, 88,7, 111, 33, 1),
         (2, [32, 32], [[41, 11], [21, 11]], [[2, 2], [2, 1]], "lstm", 3, 188, 0.2, 32,12, 333, 45, 2),
@@ -70,7 +70,7 @@ def test_recurrent(
 def test_deepspeech2(
     num_conv_layers,
     channels,
-    filter_sizes,
+    kernel_sizes,
     strides,
     rnn_type,
     num_reccurent_layers,
@@ -85,7 +85,7 @@ def test_deepspeech2(
     deepspeech2 = DeepSpeech2(
         num_conv_layers,
         channels,
-        filter_sizes,
+        kernel_sizes,
         strides,
         rnn_type,
         num_reccurent_layers,

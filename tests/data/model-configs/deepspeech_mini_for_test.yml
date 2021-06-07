@@ -5,7 +5,7 @@ num_conv_layers: 1
 # number of channel for each layers
 channels: [32]
 # number of filter size for each layers
-filter_sizes:
+kernel_sizes:
   - [41, 11]
 # number of stride for each layers
 strides:

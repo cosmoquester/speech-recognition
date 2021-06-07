@@ -150,12 +150,12 @@ class Listener(tf.keras.layers.Layer):
     ):
         super(Listener, self).__init__(**kwargs)
 
-        self.filter_sizes = (3, 3)
+        self.kernel_sizes = (3, 3)
         self.strides = 2
         self.AUDIO_PAD_VALUE = 0.0
 
-        self.conv1 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv1")
-        self.conv2 = Conv2D(32, self.filter_sizes, strides=self.strides, name="conv2")
+        self.conv1 = Conv2D(32, self.kernel_sizes, strides=self.strides, name="conv1")
+        self.conv2 = Conv2D(32, self.kernel_sizes, strides=self.strides, name="conv2")
 
         self.encoder_layers = [
             BiRNN(rnn_type, encoder_hidden_dim, dropout, name=f"encoder_layer{i}") for i in range(num_encoder_layers)
@@ -197,12 +197,12 @@ class Listener(tf.keras.layers.Layer):
         return [audio, mask] + states
 
     def _audio_mask(self, audio):
-        filter_size = self.filter_sizes[0]
+        kernel_size = self.kernel_sizes[0]
         batch_size, sequence_length = tf.unstack(tf.shape(audio)[:2], 2)
         mask = tf.reduce_any(tf.reshape(audio, [batch_size, sequence_length, -1]) != self.AUDIO_PAD_VALUE, axis=2)
-        sequence_length -= filter_size - self.strides
+        sequence_length -= kernel_size - self.strides
         sequence_length = sequence_length // self.strides
-        sequence_length -= filter_size - self.strides
+        sequence_length -= kernel_size - self.strides
         sequence_length = sequence_length // self.strides
         sequence_length *= self.strides ** 2
 
