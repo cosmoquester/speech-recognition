@@ -1,0 +1,21 @@
+data_config: resources/configs/libri_config.yml
+model_config: resources/configs/las_small_8K.yml
+sp_model_path: resources/sp-models/sp_model_unigram_16K_libri.model
+train_dataset_paths: tests/data/wav_dataset.tsv
+dev_dataset_paths: tests/data/wav_dataset.tsv
+train_dataset_size: 620000
+steps_per_epoch: 4000
+epochs: 10
+batch_size: 32
+dev_batch_size: 32
+learning_rate: 2.e-4
+min_learning_rate: 1.e-5
+device: CPU
+# max_over_policy: filter
+output_path: output
+# pretrained_model_path:
+seed: 43
+shuffle_buffer_size: 1000
+# skip_epochs:
+# use_tfrecord: true
+mixed_precision: true
