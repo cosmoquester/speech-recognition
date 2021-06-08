@@ -75,7 +75,7 @@ def test_las(
         dropout,
         teacher_forcing_rate,
     )
+    las.compile(loss=las.get_loss_fn(), metrics=las.get_metrics())
     audio = tf.random.normal([batch_size, audio_sequence_length, audio_dim, 3])
     tokens = tf.random.uniform([batch_size, num_tokens], 0, vocab_size, tf.int32)
-    output = las((audio, tokens))
-    tf.debugging.assert_equal(tf.shape(output), [batch_size, num_tokens, vocab_size])
+    loss = las._step(((audio, tokens[:, :-1]), tokens[:, 1:]))
