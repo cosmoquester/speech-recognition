@@ -358,7 +358,7 @@ class LAS(ModelProto):
         token_length = target.shape[1] or tf.shape(target)[1]
         audio_output, attention_mask, *states = self.listener(audio_input, training=training)
 
-        loss = 0.0
+        loss = tf.constant(0.0, dtype=audio_output.dtype)
         use_teacher_forcing = tf.random.uniform((), 0, 1) < self.teacher_forcing_rate
         output = tf.zeros([tf.shape(audio_output)[0], self.vocab_size], dtype=audio_output.dtype)
         for i in tf.range(token_length):
