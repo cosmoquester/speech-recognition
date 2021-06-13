@@ -340,56 +340,36 @@ class LAS(ModelProto):
             rnn_type, vocab_size, decoder_hidden_dim, num_decoder_layers, dropout, pad_id, name="attend_and_speller"
         )
 
-    def call(self, inputs):
-        """
-        `call` method is not used for training. This is only for model build and print summary.
-        Training will be executed with `train_step` function.
-        """
+    def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training: Optional[bool] = None) -> tf.Tensor:
+        # audio: [BatchSize, TimeStep, DimAudio], decoder_input: [BatchSize, NumTokens]
         audio_input, decoder_input = inputs
+
+        # Use range on TPU because of issue https://github.com/tensorflow/tensorflow/issues/49469
+        if decoder_input.shape[1]:
+            token_length = decoder_input.shape[1]
+            index_iter = range(token_length)
+        else:
+            token_length = tf.shape(decoder_input)[1]
+            index_iter = tf.range(token_length)
+
         audio_output, attention_mask, *states = self.listener(audio_input)
-        output, *states = self.attend_and_speller(audio_output, decoder_input[:, 0], attention_mask, states)
+        outputs = tf.TensorArray(
+            audio_output.dtype, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
+        )
 
-    @tf.function
-    def _step(self, inputs, training=None):
-        # audio: [BatchSize, TimeStep, DimAudio]
-        # decoder_input, target: [BatchSize, NumTokens]
-        (audio_input, decoder_input), target = inputs
-
-        token_length = target.shape[1] or tf.shape(target)[1]
-        audio_output, attention_mask, *states = self.listener(audio_input, training=training)
-
-        loss = tf.constant(0.0, dtype=audio_output.dtype)
         use_teacher_forcing = tf.random.uniform((), 0, 1) < self.teacher_forcing_rate
         output = tf.zeros([tf.shape(audio_output)[0], self.vocab_size], dtype=audio_output.dtype)
-        for i in tf.range(token_length):
+        for i in index_iter:
             if use_teacher_forcing or i == 0:
                 decoder_input_t = tf.gather(decoder_input, i, axis=1)
             else:
                 decoder_input_t = tf.argmax(output, axis=-1, output_type=tf.int32)
 
-            output, *states = self.attend_and_speller(
-                audio_output, decoder_input_t, attention_mask, states, training=training
-            )
+            output, *states = self.attend_and_speller(audio_output, decoder_input_t, attention_mask, states)
+            outputs = outputs.write(i, output)
 
-            loss += tf.reduce_mean(self.compiled_loss(target[:, i], output))
-            self.compiled_metrics.update_state(decoder_input[:, i], output)
-        loss /= tf.cast(token_length, loss.dtype)
-        return loss
-
-    def train_step(self, inputs: Tuple[Tuple[tf.Tensor, tf.Tensor], tf.Tensor]) -> Dict[str, float]:
-        # Use inner tf.function because of https://github.com/tensorflow/tensorflow/issues/42119 tf.range cannot be compiled without tf.function
-        # And https://github.com/tensorflow/models/issues/9972 error on multi device with use tf.function of whole train_step
-        with tf.GradientTape() as tape:
-            loss = self._step(inputs, training=True)
-        variables = self.trainable_variables
-        gradients = tape.gradient(loss, variables)
-        self.optimizer.apply_gradients(zip(gradients, variables))
-
-        return {"loss": loss, **{m.name: m.result() for m in self.metrics}}
-
-    def test_step(self, inputs: Tuple[Tuple[tf.Tensor, tf.Tensor], tf.Tensor]) -> Dict[str, float]:
-        loss = self._step(inputs, training=False)
-        return {"loss": loss, **{m.name: m.result() for m in self.metrics}}
+        result = tf.transpose(outputs.stack(), [1, 0, 2])
+        return result
 
     def get_loss_fn(self):
         return SparseCategoricalCrossentrophy(self.pad_id, reduction=tf.keras.losses.Reduction.NONE)
