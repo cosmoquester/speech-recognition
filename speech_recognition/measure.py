@@ -17,7 +17,7 @@ class SparseCategoricalCrossentrophy(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
         loss = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=self.from_logits)
-        loss = tf.boolean_mask(loss[:, tf.newaxis], y_true != self.ignore_index)
+        loss = tf.boolean_mask(loss, y_true != self.ignore_index)
         return loss
 
 

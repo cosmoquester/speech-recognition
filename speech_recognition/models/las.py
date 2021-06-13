@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import tensorflow as tf
 from tensorflow.keras.layers import GRU, LSTM, BatchNormalization, Conv2D, Dense, Dropout, Embedding, SimpleRNN
@@ -372,7 +372,7 @@ class LAS(ModelProto):
         return result
 
     def get_loss_fn(self):
-        return SparseCategoricalCrossentrophy(self.pad_id, reduction=tf.keras.losses.Reduction.NONE)
+        return SparseCategoricalCrossentrophy(self.pad_id)
 
     def get_metrics(self):
         return [SparseCategoricalAccuracy(self.pad_id)]
