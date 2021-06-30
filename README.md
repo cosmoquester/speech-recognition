@@ -60,10 +60,14 @@ $ python -m speech_recognition.run.train \
     --device CPU
 ```
 You can also start training with train configuration file using `--from-file` parameter.
+
 ```sh
 $ python -m speech_recognition.run.train --from-file resources/configs/train_config_sample.yml
 ```
+
 And you can override the parameter of file by command line arguments like below.
+
+```sh
 $ python -m speech_recognition.run.train \
     --from-file resources/configs/train_config_sample.yml \
     --epochs 1 \
