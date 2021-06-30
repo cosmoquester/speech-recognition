@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-class SparseCategoricalCrossentrophy(tf.keras.losses.Loss):
+class SparseCategoricalCrossentropy(tf.keras.losses.Loss):
     """Normal sparse categorical crossentrophy with ignore index"""
 
     def __init__(
