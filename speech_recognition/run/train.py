@@ -179,8 +179,10 @@ def main(cfg: TrainConfig):
             train_dataset = train_dataset.repeat()
 
             if cfg.skip_epochs:
-                logger.info(f"[+] Skip Dataset by {cfg.skip_epochs}epoch x {cfg.steps_per_epoch} steps")
-                train_dataset = train_dataset.skip(cfg.steps_per_epoch * cfg.skip_epochs)
+                logger.info(
+                    f"[+] Skip Dataset by {cfg.skip_epochs}epoch x {cfg.steps_per_epoch} steps x {cfg.batch_size}"
+                )
+                train_dataset = train_dataset.skip(cfg.steps_per_epoch * cfg.skip_epochs * cfg.batch_size)
 
         # Padded Batch
         logger.info("[+] Pad Input data")
