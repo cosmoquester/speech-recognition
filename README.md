@@ -11,6 +11,15 @@
 - `resources/configs` directory contains default datasets (LibriSpeech, KsponSpeech, Clovacall) and models (LAS, DeepSpeech2) configs.
 - `resources/sp-models` directory contains default sentencepiece tokenizer for each datasets
 
+- I trained LAS [small](https://github.com/cosmoquester/speech-recognition/blob/master/resources/configs/las_small.yml) model using LibriSpeech dataset. You can download pretrained model on [release page](https://github.com/cosmoquester/speech-recognition/releases/tag/v0.0.1)
+
+Trained model performance is below.
+
+| | LibriSpeech dev-clean | LibriSpeech dev-other |
+| --- | --- | --- |
+| WER (Word Error Rate) | 9.35% | 24.53% |
+| CER (Character Error Rate) | 4.24% | 13.29% |
+
 # References
 
 ## LAS Model
