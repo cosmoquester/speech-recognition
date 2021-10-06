@@ -105,7 +105,9 @@ class BiRNN(tf.keras.layers.Layer):
             name="backward_rnn",
         )
 
-    def call(self, inputs: tf.Tensor, mask: tf.Tensor, initial_state: Optional[tf.Tensor] = None) -> List:
+    def call(
+        self, inputs: tf.Tensor, mask: tf.Tensor, initial_state: Optional[tf.Tensor] = None, training: bool = False
+    ) -> List:
         if initial_state is None:
             forward_states = None
             backward_states = None
@@ -114,8 +116,12 @@ class BiRNN(tf.keras.layers.Layer):
             forward_states = initial_state[:num_states]
             backward_states = initial_state[num_states:]
 
-        forward_output, *forward_states = self.forward_rnn(inputs, mask=mask, initial_state=forward_states)
-        backward_output, *backward_states = self.backward_rnn(inputs, mask=mask, initial_state=backward_states)
+        forward_output, *forward_states = self.forward_rnn(
+            inputs, mask=mask, initial_state=forward_states, training=training
+        )
+        backward_output, *backward_states = self.backward_rnn(
+            inputs, mask=mask, initial_state=backward_states, training=training
+        )
         output = tf.concat([forward_output, tf.reverse(backward_output, axis=[1])], axis=-1)
         return [output] + forward_states + backward_states
 
@@ -174,8 +180,8 @@ class Listener(tf.keras.layers.Layer):
         batch_size = tf.shape(audio)[0]
 
         # [BatchSize, ReducedTimeStep, ReducedFrequencyDim, 32]
-        audio = self.dropout(self.conv1(audio))
-        audio = self.dropout(self.conv2(audio))
+        audio = self.dropout(self.conv1(audio), training=training)
+        audio = self.dropout(self.conv2(audio), training=training)
         sequence_length = -1 if audio.shape[1] is None else audio.shape[1]
         audio = tf.reshape(audio, [batch_size, sequence_length, audio.shape[2] * audio.shape[3]])
 
@@ -183,7 +189,7 @@ class Listener(tf.keras.layers.Layer):
         # audio: [BatchSize, ReducedTimeStep, HiddenDim]
         states = None
         for encoder_layer, projection, batch_norm in zip(self.encoder_layers, self.projection, self.batch_norm):
-            audio, *states = encoder_layer(audio, mask, states)
+            audio, *states = encoder_layer(audio, mask, states, training=training)
             audio = tf.nn.relu(batch_norm(projection(audio)))
 
         # Concat states of two directions
@@ -269,7 +275,7 @@ class AttendAndSpeller(tf.keras.layers.Layer):
         # [BatchSize, 1]
         mask = tf.expand_dims(decoder_input != self.pad_id, axis=1)
         # [BatchSize, HiddenDim]
-        decoder_input = self.dropout(self.embedding(decoder_input))
+        decoder_input = self.dropout(self.embedding(decoder_input), training=training)
 
         # Decode
         # decoder_input: [BatchSize, HiddenDim]
@@ -278,7 +284,7 @@ class AttendAndSpeller(tf.keras.layers.Layer):
 
         for decoder_layer in self.decoder_layers:
             decoder_input, *states = decoder_layer(
-                tf.expand_dims(decoder_input, axis=1), initial_state=states, mask=mask
+                tf.expand_dims(decoder_input, axis=1), initial_state=states, mask=mask, training=training
             )
 
         # [BatchSize, VocabSize]
@@ -352,7 +358,7 @@ class LAS(ModelProto):
             token_length = tf.shape(decoder_input)[1]
             index_iter = tf.range(token_length)
 
-        audio_output, attention_mask, *states = self.listener(audio_input)
+        audio_output, attention_mask, *states = self.listener(audio_input, training=training)
         outputs = tf.TensorArray(
             audio_output.dtype, size=token_length, infer_shape=False, element_shape=[None, self.vocab_size]
         )
@@ -365,7 +371,9 @@ class LAS(ModelProto):
             else:
                 decoder_input_t = tf.argmax(output, axis=-1, output_type=tf.int32)
 
-            output, *states = self.attend_and_speller(audio_output, decoder_input_t, attention_mask, states)
+            output, *states = self.attend_and_speller(
+                audio_output, decoder_input_t, attention_mask, states, training=training
+            )
             outputs = outputs.write(i, output)
 
         result = tf.transpose(outputs.stack(), [1, 0, 2])

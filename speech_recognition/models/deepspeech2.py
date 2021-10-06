@@ -111,10 +111,10 @@ class Recurrent(tf.keras.layers.Layer):
         ]
         self.batch_norm = [BatchNormalization(name=f"batch_normalization{i}") for i in range(num_layers)]
 
-    def call(self, audio_input: tf.Tensor, mask: tf.Tensor) -> List:
+    def call(self, audio_input: tf.Tensor, mask: tf.Tensor, training: bool = False) -> List:
         states = None
         for rnn_layer, batch_norm in zip(self.rnn_layers, self.batch_norm):
-            output, *states = rnn_layer(audio_input, mask, states)
+            output, *states = rnn_layer(audio_input, mask, states, training=training)
             audio_input = batch_norm(output)
         return audio_input
 
@@ -171,9 +171,9 @@ class DeepSpeech2(ModelProto):
         )
         self.fully_connected = Dense(vocab_size)
 
-    def call(self, audio_input):
+    def call(self, audio_input, training: bool = False):
         audio, mask = self.convolution(audio_input)
-        audio = self.recurrent(audio, mask) * tf.cast(mask[:, :, tf.newaxis], audio.dtype)
+        audio = self.recurrent(audio, mask, training=training) * tf.cast(mask[:, :, tf.newaxis], audio.dtype)
         output = self.fully_connected(audio)
         return output
 
