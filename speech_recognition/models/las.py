@@ -77,12 +77,7 @@ class BiRNN(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self,
-        rnn_type: str,
-        units: int,
-        dropout: float = 0.0,
-        recurrent_dropout: float = 0.0,
-        **kwargs,
+        self, rnn_type: str, units: int, dropout: float = 0.0, recurrent_dropout: float = 0.0, **kwargs,
     ):
         super(BiRNN, self).__init__(**kwargs)
 

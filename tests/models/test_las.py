@@ -20,11 +20,7 @@ def test_additive_attention(hidden_dim, sequence_length, batch_size):
 
 @pytest.mark.parametrize(
     "rnn_type,units,dropout,batch_size,sequence_length,feature_dim,pad_length",
-    [
-        ("rnn", 13, 0.1, 23, 11, 8, 3),
-        ("lstm", 33, 0.2, 34, 41, 2, 4),
-        ("gru", 111, 0.3, 55, 3, 99, 5),
-    ],
+    [("rnn", 13, 0.1, 23, 11, 8, 3), ("lstm", 33, 0.2, 34, 41, 2, 4), ("gru", 111, 0.3, 55, 3, 99, 5),],
 )
 def test_bi_rnn(rnn_type, units, dropout, batch_size, sequence_length, feature_dim, pad_length):
     rnn = BiRNN(rnn_type, units, dropout, dropout)
