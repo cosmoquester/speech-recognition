@@ -77,7 +77,12 @@ class BiRNN(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self, rnn_type: str, units: int, dropout: float = 0.0, recurrent_dropout: float = 0.0, **kwargs,
+        self,
+        rnn_type: str,
+        units: int,
+        dropout: float = 0.0,
+        recurrent_dropout: float = 0.0,
+        **kwargs,
     ):
         super(BiRNN, self).__init__(**kwargs)
 
@@ -205,9 +210,9 @@ class Listener(tf.keras.layers.Layer):
         sequence_length = sequence_length // self.strides
         sequence_length -= kernel_size - self.strides
         sequence_length = sequence_length // self.strides
-        sequence_length *= self.strides ** 2
+        sequence_length *= self.strides**2
 
-        mask = tf.reshape(mask[:, :sequence_length], [batch_size, -1, self.strides ** 2])
+        mask = tf.reshape(mask[:, :sequence_length], [batch_size, -1, self.strides**2])
         mask = tf.reduce_any(mask, axis=2)
         return mask
 

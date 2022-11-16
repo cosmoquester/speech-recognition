@@ -89,7 +89,10 @@ def main(cfg: TrainConfig):
 
             logger.info(f"[+] Load dev dataset from {cfg.dev_dataset_paths}")
             dev_dataset = get_dataset(
-                cfg.dev_dataset_paths, cfg.data_config.file_format, cfg.data_config.sample_rate, tokenizer,
+                cfg.dev_dataset_paths,
+                cfg.data_config.file_format,
+                cfg.data_config.sample_rate,
+                tokenizer,
             ).map(cfg.data_config.audio_feature_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
         # SpecAugment
@@ -133,7 +136,11 @@ def main(cfg: TrainConfig):
 
             model_input, _ = model.make_example(
                 tf.keras.Input(
-                    [cfg.audio_pad_length, cfg.data_config.frequency_dim, cfg.data_config.feature_dim,],
+                    [
+                        cfg.audio_pad_length,
+                        cfg.data_config.frequency_dim,
+                        cfg.data_config.feature_dim,
+                    ],
                     dtype=tf.float32,
                 ),
                 tf.keras.Input([cfg.token_pad_length], dtype=tf.int32),

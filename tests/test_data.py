@@ -58,7 +58,13 @@ def test_make_tfrecord_dataset():
 
 
 @pytest.mark.parametrize(
-    "frame_length,frame_step,fft_length", [(1024, 1024, 1024), (128, 64, 256), (128, 80, None), (512, 512, 256),],
+    "frame_length,frame_step,fft_length",
+    [
+        (1024, 1024, 1024),
+        (128, 64, 256),
+        (128, 80, None),
+        (512, 512, 256),
+    ],
 )
 def test_make_spectrogram(frame_length, frame_step, fft_length):
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
@@ -87,7 +93,13 @@ def test_make_log_mel_spectrogram(
     audio_timestep = tf.shape(next(iter(wav_dataset))[0])[0]
     dataset = wav_dataset.map(
         make_log_mel_spectrogram(
-            sample_rate, frame_length, frame_step, fft_length, num_mel_bins, lower_edge_hertz, upper_edge_hertz,
+            sample_rate,
+            frame_length,
+            frame_step,
+            fft_length,
+            num_mel_bins,
+            lower_edge_hertz,
+            upper_edge_hertz,
         )
     )
     audio_sample = next(iter(dataset))[0]
