@@ -62,8 +62,8 @@ def main(cfg: TrainConfig):
     with get_device_strategy(cfg.device).scope():
         if cfg.mixed_precision:
             mixed_type = "mixed_bfloat16" if cfg.device == "TPU" else "mixed_float16"
-            policy = tf.keras.mixed_precision.experimental.Policy(mixed_type)
-            tf.keras.mixed_precision.experimental.set_policy(policy)
+            policy = tf.keras.mixed_precision.Policy(mixed_type)
+            tf.keras.mixed_precision.set_global_policy(policy)
             logger.info("[+] Use Mixed Precision FP16")
 
         # Construct Dataset
