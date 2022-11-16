@@ -68,7 +68,10 @@ class LAS_Searcher:
                 tf.TensorSpec([None, None], is_ended.dtype),
                 tf.TensorSpec([None, None], log_perplexity.dtype),
                 tf.TensorSpec([None, None], sequence_lengths.dtype),
-                [tf.TensorSpec([None, None], states[0].dtype), tf.TensorSpec([None, None], states[1].dtype),],
+                [
+                    tf.TensorSpec([None, None], states[0].dtype),
+                    tf.TensorSpec([None, None], states[1].dtype),
+                ],
             ],
         )
 
@@ -78,7 +81,13 @@ class LAS_Searcher:
         return decoder_input, perplexity
 
     @tf.function(experimental_relax_shapes=True)
-    def beam_search(self, audio_input: tf.Tensor, beam_size: int, alpha: float = 1, beta: int = 32,) -> tf.Tensor:
+    def beam_search(
+        self,
+        audio_input: tf.Tensor,
+        beam_size: int,
+        alpha: float = 1,
+        beta: int = 32,
+    ) -> tf.Tensor:
         """
         Generate sentences using decoder by beam searching.
 
@@ -183,7 +192,10 @@ class LAS_Searcher:
                 tf.TensorSpec([None, None], tf.int32),
                 tf.TensorSpec([None, None], tf.bool),
                 tf.TensorSpec([None, None], log_perplexity.dtype),
-                [tf.TensorSpec([None, None], states[0].dtype), tf.TensorSpec([None, None], states[1].dtype),],
+                [
+                    tf.TensorSpec([None, None], states[0].dtype),
+                    tf.TensorSpec([None, None], states[1].dtype),
+                ],
             ],
         )
 

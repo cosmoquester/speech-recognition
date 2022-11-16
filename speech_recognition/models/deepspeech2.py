@@ -29,7 +29,12 @@ class Convolution(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self, num_layers: int, channels: List[int], kernel_sizes: List[List[int]], strides: List[List[int]], **kwargs,
+        self,
+        num_layers: int,
+        channels: List[int],
+        kernel_sizes: List[List[int]],
+        strides: List[List[int]],
+        **kwargs,
     ):
         super(Convolution, self).__init__(**kwargs)
 
